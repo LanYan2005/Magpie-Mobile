@@ -41,7 +41,7 @@ class MagpieL10n {
       });
 
   String agentStatus(AgentStatus status) => text(status.label, switch (status) {
-    AgentStatus.online => 'Online (demo)',
+    AgentStatus.online => 'Not connected to Magpie',
     AgentStatus.needsSetup => 'Needs setup',
     AgentStatus.paused => 'Paused',
   });

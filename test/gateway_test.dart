@@ -461,18 +461,24 @@ void main() {
   );
 
   test(
-    'flushes SSE before upstream closes and redacts secrets across chunks',
+    'preserves fast and reasoning options, streams reasoning, and redacts keys',
     () async {
+      const body =
+          '{"model":"fixture","stream":true,'
+          '"service_tier":"priority","reasoning_effort":"high"}';
+      const firstEvent =
+          'data: {"choices":[{"delta":{"reasoning_content":"fixture"}}]}';
+      final received = Completer<String>();
       final releaseTail = Completer<void>();
       addTearDown(() {
         if (!releaseTail.isCompleted) releaseTail.complete();
       });
       upstream.listen((request) async {
-        await request.drain<void>();
+        received.complete(await utf8.decoder.bind(request).join());
         final response = request.response
           ..bufferOutput = false
           ..headers.contentType = ContentType('text', 'event-stream');
-        response.write('data: {"delta":"first"}\n\n');
+        response.write('$firstEvent\n\n');
         await response.flush();
         await releaseTail.future;
         response.write('data: {"delta":"fixture-');
@@ -485,8 +491,9 @@ void main() {
         _chat,
         method: 'POST',
         token: gateway.token,
-        body: '{"stream":true}',
+        body: body,
       ).timeout(const Duration(seconds: 3));
+      expect(await received.future.timeout(const Duration(seconds: 3)), body);
       expect(response.headers.contentType?.mimeType, 'text/event-stream');
       final lines = StreamIterator(
         response.transform(utf8.decoder).transform(const LineSplitter()),
@@ -496,7 +503,7 @@ void main() {
         await lines.moveNext().timeout(const Duration(seconds: 3)),
         isTrue,
       );
-      expect(lines.current, 'data: {"delta":"first"}');
+      expect(lines.current, firstEvent);
       releaseTail.complete();
       final remaining = <String>[];
       while (await lines.moveNext()) {

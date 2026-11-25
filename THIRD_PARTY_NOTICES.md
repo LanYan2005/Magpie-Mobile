@@ -2,6 +2,8 @@
 
 Magpie mark: yetone/magpie, build/icon/magpie.svg at commit 95e6a4180866afde186e0f1a25369388c7fd7e7f.
 
+The Flutter Agent list adapts the row layout, field order, and disclosure interactions from `renderAgents` in [app.js](https://github.com/yetone/magpie/blob/eab4b006d52b818cd91bd2d10b3918782cf535db/internal/gui/assets/app.js#L492) and the Agent list styles in [app.css](https://github.com/yetone/magpie/blob/eab4b006d52b818cd91bd2d10b3918782cf535db/internal/gui/assets/app.css#L775).
+
 ## Upstream MIT License
 
 MIT License

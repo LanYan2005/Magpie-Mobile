@@ -61,18 +61,39 @@ void main() {
     expect(find.byKey(const ValueKey('gateway-route-gemini')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('gateway-route-chat')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('gateway-route-endpoint')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('gateway-route-endpoint')),
+      findsOneWidget,
+    );
     await tester.tap(find.byIcon(Icons.arrow_back_rounded));
     await tester.pumpAndSettle();
 
     await switchTab(tester, 'nav-agents');
     expect(find.text('Claude Code'), findsOneWidget);
-    await tester.ensureVisible(find.text('Claude Code'));
-    await tester.tap(find.text('Claude Code'));
+    final agentName = find.byKey(const ValueKey('agent-name-agent-claude'));
+    final modelControl = find.byKey(const ValueKey('agent-model-agent-claude'));
+    final accessControl = find.byKey(
+      const ValueKey('agent-access-agent-claude'),
+    );
+    final details = find.byKey(const ValueKey('agent-details-agent-claude'));
+    expect(modelControl, findsOneWidget);
+    expect(accessControl, findsOneWidget);
+    expect(details, findsOneWidget);
+    expect(
+      tester.getTopLeft(modelControl).dy,
+      greaterThan(tester.getTopLeft(agentName).dy),
+    );
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(modelControl);
     await tester.pumpAndSettle();
-    expect(find.text('运行时与接入方式'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('agent-model-field')).hitTestable(),
+      findsOneWidget,
+    );
     await tester.tap(find.byIcon(Icons.arrow_back_rounded));
     await tester.pumpAndSettle();
+    expect(accessControl.hitTestable(), findsOneWidget);
 
     await switchTab(tester, 'nav-resources');
     expect(find.text('code-review'), findsOneWidget);
@@ -86,6 +107,31 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('open-settings-button')));
     await tester.pumpAndSettle();
     expect(find.text('平台适配清单'), findsOneWidget);
+  });
+
+  testWidgets('Agent 宽屏同排，放大文字后按相同顺序换行', (tester) async {
+    await pumpApp(tester, size: const Size(768, 844));
+    await switchTab(tester, 'nav-agents');
+
+    final name = find.byKey(const ValueKey('agent-name-agent-claude'));
+    final model = find.byKey(const ValueKey('agent-model-agent-claude'));
+    final access = find.byKey(const ValueKey('agent-access-agent-claude'));
+    final details = find.byKey(const ValueKey('agent-details-agent-claude'));
+    expect(tester.getCenter(name).dy, tester.getCenter(model).dy);
+    expect(tester.getCenter(model).dx, lessThan(tester.getCenter(access).dx));
+    expect(tester.getCenter(access).dx, lessThan(tester.getCenter(details).dx));
+
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    tester.view.physicalSize = const Size(320, 568);
+    await tester.pumpAndSettle();
+    expect(model, findsOneWidget);
+    expect(access, findsOneWidget);
+    expect(details, findsOneWidget);
+    expect(
+      tester.getTopLeft(model).dy,
+      greaterThan(tester.getTopLeft(name).dy),
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('导航转场短促且能切页', (tester) async {
@@ -157,7 +203,10 @@ void main() {
     await switchTab(tester, 'nav-providers');
     await tester.tap(find.text('Chat Completions'));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('gateway-route-endpoint')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('gateway-route-endpoint')),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byIcon(Icons.arrow_back_rounded));
     await tester.pumpAndSettle();

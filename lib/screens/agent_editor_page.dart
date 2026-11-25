@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/domain_style.dart';
 import '../core/magpie_l10n.dart';
+import '../core/magpie_motion.dart';
 import '../core/magpie_theme.dart';
 import '../data/demo_data.dart';
 import '../models/magpie_models.dart';
@@ -10,10 +11,13 @@ import '../widgets/app_canvas.dart';
 import '../widgets/primitives.dart';
 import '../widgets/sheets.dart';
 
+enum AgentEditorSection { model, access }
+
 class AgentEditorPage extends StatefulWidget {
-  const AgentEditorPage({this.agent, super.key});
+  const AgentEditorPage({this.agent, this.section, super.key});
 
   final AgentConfig? agent;
+  final AgentEditorSection? section;
 
   @override
   State<AgentEditorPage> createState() => _AgentEditorPageState();
@@ -21,6 +25,8 @@ class AgentEditorPage extends StatefulWidget {
 
 class _AgentEditorPageState extends State<AgentEditorPage> {
   final _formKey = GlobalKey<FormState>();
+  final _accessSection = GlobalKey();
+  final _modelSection = GlobalKey();
   late final TextEditingController _nameController;
   late final TextEditingController _endpointController;
   late final TextEditingController _modelController;
@@ -67,6 +73,21 @@ class _AgentEditorPageState extends State<AgentEditorPage> {
         agent?.permissions.contains(_workspacePermission) ?? true;
     _commandAccess = agent?.permissions.contains(_commandPermission) ?? false;
     _networkAccess = agent?.permissions.contains(_networkPermission) ?? false;
+    final section = widget.section;
+    if (section == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = switch (section) {
+        AgentEditorSection.model => _modelSection.currentContext,
+        AgentEditorSection.access => _accessSection.currentContext,
+      };
+      if (target == null) return;
+      Scrollable.ensureVisible(
+        target,
+        alignment: 0.05,
+        duration: MagpieMotion.duration(target, MagpieMotion.tab),
+        curve: MagpieMotion.curveFor(target),
+      );
+    });
   }
 
   void _onNameChanged() {
@@ -153,13 +174,10 @@ class _AgentEditorPageState extends State<AgentEditorPage> {
   }
 
   void _selectRuntime(AgentRuntime runtime) {
-    final previousDefault = _runtimeDefaultName(_runtime);
     final previousModel = _defaultModel(_runtime);
     setState(() {
       _runtime = runtime;
-      if (!_nameEdited && _nameController.text.trim() == previousDefault) {
-        _displayedName = null;
-      }
+      if (!_isEditing && !_nameEdited) _syncLocalizedFields();
       if (_modelController.text.trim().isEmpty ||
           _modelController.text.trim() == previousModel) {
         _modelController.text = _defaultModel(runtime);
@@ -215,18 +233,31 @@ class _AgentEditorPageState extends State<AgentEditorPage> {
               'Demo Agent created (not connected)',
             ),
     );
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(agent);
   }
 
   @override
   Widget build(BuildContext context) {
-    _syncLocalizedFields();
     return AppCanvas(
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
           child: Column(
             children: [
+              Padding(
+                padding: pagePadding.copyWith(bottom: 0),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: PageTopBar(
+                      title: _isEditing
+                          ? context.tr('编辑 Agent', 'Edit Agent')
+                          : context.tr('新建 Agent', 'New Agent'),
+                      onBack: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                ),
+              ),
               Expanded(
                 child: SingleChildScrollView(
                   padding: pagePadding,
@@ -238,13 +269,6 @@ class _AgentEditorPageState extends State<AgentEditorPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            PageTopBar(
-                              title: _isEditing
-                                  ? context.tr('编辑 Agent', 'Edit Agent')
-                                  : context.tr('新建 Agent', 'New Agent'),
-                              onBack: () => Navigator.of(context).pop(),
-                            ),
-                            const SizedBox(height: 18),
                             DemoBadge(
                               label: context.tr(
                                 '本地演示配置',
@@ -296,7 +320,10 @@ class _AgentEditorPageState extends State<AgentEditorPage> {
                               },
                             ),
                             const SizedBox(height: 20),
-                            _FormLabel(context.tr('接入方式', 'Connection method')),
+                            _FormLabel(
+                              context.tr('接入方式', 'Connection method'),
+                              key: _accessSection,
+                            ),
                             const SizedBox(height: 8),
                             LayoutBuilder(
                               builder: (context, constraints) {
@@ -390,9 +417,13 @@ class _AgentEditorPageState extends State<AgentEditorPage> {
                               },
                             ),
                             const SizedBox(height: 15),
-                            _FormLabel(context.tr('模型', 'Model')),
+                            _FormLabel(
+                              context.tr('模型', 'Model'),
+                              key: _modelSection,
+                            ),
                             const SizedBox(height: 7),
                             TextFormField(
+                              key: const ValueKey('agent-model-field'),
                               controller: _modelController,
                               textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
@@ -525,7 +556,7 @@ class _AgentEditorPageState extends State<AgentEditorPage> {
 }
 
 class _FormLabel extends StatelessWidget {
-  const _FormLabel(this.label);
+  const _FormLabel(this.label, {super.key});
 
   final String label;
 

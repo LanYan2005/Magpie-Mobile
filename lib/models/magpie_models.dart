@@ -105,7 +105,7 @@ enum AgentAccess {
 }
 
 enum AgentStatus {
-  online('演示在线'),
+  online('未接入 Magpie'),
   needsSetup('待配置'),
   paused('已暂停');
 

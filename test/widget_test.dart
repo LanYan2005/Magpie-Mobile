@@ -56,11 +56,17 @@ void main() {
 
     await switchTab(tester, 'nav-providers');
     for (final protocol in GatewayProtocol.values) {
-      expect(find.byKey(ValueKey('gateway-route-${protocol.name}')), findsOneWidget);
+      expect(
+        find.byKey(ValueKey('gateway-route-${protocol.name}')),
+        findsOneWidget,
+      );
     }
     expect(find.text('未配置'), findsNWidgets(5));
     expect(find.text('Anthropic 官方'), findsNothing);
-    expect(find.byKey(const ValueKey('providers-gateway-routes')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('providers-gateway-routes')),
+      findsNothing,
+    );
 
     await tester.tap(find.byKey(const ValueKey('gateway-route-chat')));
     await tester.pumpAndSettle();
@@ -75,25 +81,81 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('gateway-route-save')));
     await tester.pumpAndSettle();
 
-    expect(find.text('https://api.example.com/v1/chat/completions'), findsOneWidget);
+    expect(
+      find.text('https://api.example.com/v1/chat/completions'),
+      findsOneWidget,
+    );
     expect(find.text('已配置 · 已载入密钥'), findsOneWidget);
     expect(
       preferences.getString('magpie.gateway.route.chat'),
       contains('https://api.example.com/v1/chat/completions'),
     );
-    expect(preferences.getString('magpie.gateway.route.chat'), isNot(contains('fixture-key-024')));
-
-    await switchTab(tester, 'nav-agents');
-    expect(find.text('Claude Code'), findsOneWidget);
-    expect(find.text('配置 · Claude Code'), findsOneWidget);
-    expect(find.text('接入 · 本机 CLI'), findsOneWidget);
-
-    await switchTab(tester, 'nav-resources');
-    expect(find.text('Skills'), findsWidgets);
-    expect(find.text('code-review'), findsOneWidget);
+    expect(
+      preferences.getString('magpie.gateway.route.chat'),
+      isNot(contains('fixture-key-024')),
+    );
 
     await switchTab(tester, 'nav-overview');
     expect(find.text('本机网关已停止'), findsOneWidget);
+  });
+
+  testWidgets('Agent 列表保留展开状态并定位到模型和接入方式', (tester) async {
+    await pumpApp(tester);
+    await switchTab(tester, 'nav-agents');
+
+    final claude = find.byKey(const ValueKey('agent-name-agent-claude'));
+    final claudeSummary = find.byKey(
+      const ValueKey('agent-summary-agent-claude'),
+    );
+    final gemini = find.byKey(const ValueKey('agent-name-agent-gemini'));
+    final geminiSummary = find.byKey(
+      const ValueKey('agent-summary-agent-gemini'),
+    );
+    final model = find.byKey(const ValueKey('agent-model-agent-claude'));
+    final access = find.byKey(const ValueKey('agent-access-agent-claude'));
+    final more = find.byKey(const ValueKey('agents-show-more'));
+
+    expect(model, findsOneWidget);
+    expect(access, findsOneWidget);
+    expect(claudeSummary, findsNothing);
+    expect(find.text('Codex'), findsNothing);
+    await tester.tap(claude);
+    await tester.pumpAndSettle();
+    expect(claudeSummary, findsOneWidget);
+    await tester.tap(gemini);
+    await tester.pumpAndSettle();
+    expect(claudeSummary, findsNothing);
+    expect(geminiSummary, findsOneWidget);
+
+    await tester.tap(model);
+    await tester.pumpAndSettle();
+    final modelField = find.byKey(const ValueKey('agent-model-field'));
+    expect(modelField.hitTestable(), findsOneWidget);
+    await tester.enterText(modelField, 'local-config-model');
+    await tester.tap(find.byKey(const ValueKey('save-agent-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('local-config-model'), findsOneWidget);
+    expect(geminiSummary, findsOneWidget);
+
+    await tester.tap(access);
+    await tester.pumpAndSettle();
+    expect(find.text('SSH 远程').hitTestable(), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+    await tester.pumpAndSettle();
+    expect(model, findsOneWidget);
+    expect(geminiSummary, findsOneWidget);
+
+    await tester.ensureVisible(more);
+    await tester.tap(more);
+    await tester.pumpAndSettle();
+    expect(find.text('Codex'), findsOneWidget);
+    await switchTab(tester, 'nav-providers');
+    await switchTab(tester, 'nav-agents');
+    expect(find.text('Codex'), findsOneWidget);
+    await tester.ensureVisible(more);
+    await tester.tap(more);
+    await tester.pumpAndSettle();
+    expect(find.text('Codex'), findsNothing);
   });
 
   testWidgets('Agent 所需的旧供应商示例保留在内部数据而不冒充真实路由', (tester) async {
@@ -101,15 +163,51 @@ void main() {
     await switchTab(tester, 'nav-providers');
 
     expect(find.text('Anthropic 官方'), findsNothing);
-    expect(find.byKey(const ValueKey('gateway-route-anthropic')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('gateway-route-anthropic')),
+      findsOneWidget,
+    );
     expect(find.text('真实供应商'), findsNothing);
+  });
+
+  testWidgets('英文界面新建 Agent 后自动显示该配置', (tester) async {
+    SharedPreferences.setMockInitialValues({'magpie.ui_language': 'en'});
+    final preferences = await SharedPreferences.getInstance();
+    await pumpApp(tester, preferences: preferences);
+    await switchTab(tester, 'nav-agents');
+
+    expect(find.text('Show 1 more'), findsOneWidget);
+    expect(find.text('Not connected to Magpie'), findsNWidgets(2));
+    await tester.tap(find.byKey(const ValueKey('add-agent-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Codex'));
+    await tester.pumpAndSettle();
+    final name = find.widgetWithText(TextFormField, 'Codex');
+    expect(name, findsOneWidget);
+    await tester.ensureVisible(name);
+    await tester.enterText(name, 'Build Agent');
+    await tester.tap(find.byKey(const ValueKey('save-agent-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Build Agent').hitTestable(), findsOneWidget);
+    expect(find.text('gpt-5-codex'), findsNWidgets(2));
+    expect(find.text('Show less'), findsOneWidget);
+    expect(find.text('Codex'), findsOneWidget);
   });
 
   testWidgets('Agent 编辑器支持切换配置类型与 Termux 接入方式', (tester) async {
     await pumpApp(tester);
     await switchTab(tester, 'nav-agents');
 
-    await tester.tap(find.text('Claude Code'));
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('agent-name-agent-claude')),
+    );
+    await tester.tap(find.byKey(const ValueKey('agent-name-agent-claude')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('agent-details-agent-claude')),
+    );
+    await tester.tap(find.byKey(const ValueKey('agent-details-agent-claude')));
     await tester.pumpAndSettle();
 
     expect(find.text('运行时与接入方式'), findsOneWidget);
