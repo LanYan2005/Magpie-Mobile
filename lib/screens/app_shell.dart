@@ -308,7 +308,7 @@ class _DockItem extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: color,
-                        fontSize: 10.5,
+                        fontSize: 12.5,
                         height: 1.2,
                         fontWeight: selected
                             ? FontWeight.w700

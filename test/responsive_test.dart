@@ -24,17 +24,44 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('日常界面基准字号清晰且系统文字缩放继续生效', (tester) async {
+    await pumpApp(tester, size: const Size(390, 844));
+
+    await switchTab(tester, 'nav-providers');
+    final context = tester.element(find.text('Chat Completions'));
+    final textTheme = Theme.of(context).textTheme;
+    expect(textTheme.bodyLarge?.fontSize, 16);
+    expect(textTheme.bodyMedium?.fontSize, 15);
+    expect(textTheme.bodySmall?.fontSize, 13);
+    expect(textTheme.labelMedium?.fontSize, 13);
+    expect(textTheme.labelSmall?.fontSize, 12);
+    expect(
+      tester
+          .widget<MediaQuery>(find.byType(MediaQuery).first)
+          .data
+          .textScaler
+          .scale(16),
+      16,
+    );
+    expect(tester.takeException(), isNull);
+
+    tester.platformDispatcher.textScaleFactorTestValue = 1.25;
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('小屏手机与放大字体下主要页面不溢出', (tester) async {
     await pumpApp(tester, size: const Size(320, 568), textScale: 1.25);
 
-    expect(find.text('演示状态：Gateway 运行正常'), findsOneWidget);
+    expect(find.text('本机网关已停止'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await switchTab(tester, 'nav-providers');
-    expect(find.text('Anthropic 官方'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('add-provider-button')));
+    expect(find.text('Chat Completions'), findsOneWidget);
+    expect(find.byKey(const ValueKey('gateway-route-gemini')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('gateway-route-chat')));
     await tester.pumpAndSettle();
-    expect(find.text('新增一条模型路由'), findsOneWidget);
+    expect(find.byKey(const ValueKey('gateway-route-endpoint')), findsOneWidget);
     await tester.tap(find.byIcon(Icons.arrow_back_rounded));
     await tester.pumpAndSettle();
 
@@ -71,9 +98,9 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('nav-providers')));
     await tester.pump(const Duration(milliseconds: 80));
-    expect(find.text('Anthropic 官方'), findsOneWidget);
+    expect(find.text('Chat Completions'), findsOneWidget);
     await tester.pumpAndSettle();
-    expect(find.text('Anthropic 官方'), findsOneWidget);
+    expect(find.text('Chat Completions'), findsOneWidget);
   });
 
   testWidgets('关闭系统动画偏好后导航与按压状态即时完成', (tester) async {
@@ -89,7 +116,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('nav-providers')));
     await tester.pump();
-    expect(find.text('Anthropic 官方'), findsOneWidget);
+    expect(find.text('Chat Completions'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -120,7 +147,7 @@ void main() {
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.darkTheme?.brightness, Brightness.dark);
     expect(find.text('Gateway'), findsOneWidget);
-    expect(find.text('演示状态：Gateway 运行正常'), findsOneWidget);
+    expect(find.text('本机网关已停止'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -128,9 +155,9 @@ void main() {
     await pumpApp(tester, size: const Size(430, 932));
 
     await switchTab(tester, 'nav-providers');
-    await tester.tap(find.text('Anthropic 官方'));
+    await tester.tap(find.text('Chat Completions'));
     await tester.pumpAndSettle();
-    expect(find.text('连接配置'), findsOneWidget);
+    expect(find.byKey(const ValueKey('gateway-route-endpoint')), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.arrow_back_rounded));
     await tester.pumpAndSettle();

@@ -55,7 +55,7 @@ class PageHeader extends StatelessWidget {
           subtitle,
           style: Theme.of(
             context,
-          ).textTheme.bodyMedium?.copyWith(fontSize: 14, height: 1.6),
+          ).textTheme.bodyMedium?.copyWith(fontSize: 15, height: 1.6),
         ),
       ],
     );
@@ -290,7 +290,7 @@ class DemoBadge extends StatelessWidget {
               label ?? context.tr('演示', 'Demo'),
               style: TextStyle(
                 color: context.magpie.amber,
-                fontSize: compact ? 9.5 : 10,
+                fontSize: compact ? 11 : 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.4,
                 height: 1,
@@ -354,7 +354,7 @@ class StatusPill extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: color,
-                fontSize: compact ? 9.5 : 11,
+                fontSize: compact ? 11 : 12,
                 fontWeight: FontWeight.w700,
                 height: 1,
               ),
@@ -405,9 +405,9 @@ class TagChip extends StatelessWidget {
               label,
               style: TextStyle(
                 color: foreground,
-                fontSize: 10.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
-                height: 1.2,
+                height: 1.3,
               ),
             ),
           ),
@@ -526,7 +526,7 @@ class SectionHeader extends StatelessWidget {
                 title,
                 style: Theme.of(
                   context,
-                ).textTheme.titleLarge?.copyWith(fontSize: 18),
+                ).textTheme.titleLarge?.copyWith(fontSize: 19),
               ),
               if (subtitle != null) ...[
                 const SizedBox(height: 3),
@@ -599,7 +599,7 @@ class InfoBanner extends StatelessWidget {
                         title,
                         style: TextStyle(
                           color: accent,
-                          fontSize: 12.5,
+                          fontSize: 14,
                           fontWeight: FontWeight.w700,
                           height: 1.3,
                         ),
@@ -609,8 +609,8 @@ class InfoBanner extends StatelessWidget {
                         body,
                         style: TextStyle(
                           color: context.magpie.inkSoft,
-                          fontSize: 11.5,
-                          height: 1.45,
+                          fontSize: 13,
+                          height: 1.5,
                         ),
                       ),
                       if (actionLabel != null) ...[
@@ -625,7 +625,7 @@ class InfoBanner extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: accent,
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -725,7 +725,7 @@ class MetricBlock extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: labelColor ?? colors.muted,
-            fontSize: 10.5,
+            fontSize: 12,
             fontWeight: FontWeight.w500,
             height: 1.2,
           ),
@@ -888,9 +888,9 @@ class ChoicePill extends StatelessWidget {
                     color: selected
                         ? context.magpie.jadeDeep
                         : context.magpie.muted,
-                    fontSize: 11.5,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    height: 1,
+                    height: 1.2,
                   ),
                 ),
               ),

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/magpie_l10n.dart';
 import '../core/magpie_theme.dart';
 import '../data/demo_data.dart';
+import '../gateway/gateway_controller.dart';
+import '../gateway/gateway_scope.dart';
 import '../models/magpie_models.dart';
 import '../state/magpie_store.dart';
 import '../widgets/app_canvas.dart';
@@ -45,8 +48,8 @@ class OverviewPage extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   context.tr(
-                    '在本地预览 Gateway、Providers、Agents、Skills 和 MCP。',
-                    'Preview Gateway, Providers, Agents, Skills, and MCP locally.',
+                    '管理本机网关，预览 Providers、Agents、Skills 和 MCP。',
+                    'Manage the local gateway and preview Providers, Agents, Skills, and MCP.',
                   ),
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
@@ -111,6 +114,54 @@ class _GatewayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final gateway = GatewayScope.of(context);
+    final running = gateway.state == GatewayState.running;
+    final status = switch (gateway.state) {
+      GatewayState.stopped => context.tr('本机网关已停止', 'Local gateway is stopped'),
+      GatewayState.starting => context.tr(
+        '正在启动本机网关…',
+        'Starting local gateway…',
+      ),
+      GatewayState.running => context.tr(
+        '本机网关正在运行',
+        'Local gateway is running',
+      ),
+      GatewayState.stopping => context.tr(
+        '正在停止本机网关…',
+        'Stopping local gateway…',
+      ),
+    };
+    final issue = switch (gateway.issue) {
+      GatewayIssue.invalidUpstream => context.tr(
+        '使用 HTTPS 或其他端口上的 HTTP 127.0.0.1。地址里不要包含凭据、查询参数或片段。',
+        'Use HTTPS or HTTP 127.0.0.1 on a different port. Remove URL credentials, query parameters, and fragments.',
+      ),
+      GatewayIssue.invalidApiKey => context.tr(
+        'API 密钥格式无效。',
+        'Invalid API key format.',
+      ),
+      GatewayIssue.saveFailed => context.tr(
+        '保存上游配置失败，请重试。',
+        'Could not save the upstream. Try again.',
+      ),
+      GatewayIssue.missingUpstream => context.tr(
+        '请先保存上游配置。',
+        'Save an upstream first.',
+      ),
+      GatewayIssue.portInUse => context.tr(
+        '端口 3425 已被占用。',
+        'Port 3425 is already in use.',
+      ),
+      GatewayIssue.startFailed => context.tr(
+        '监听 127.0.0.1:3425 失败。',
+        'Could not listen on 127.0.0.1:3425.',
+      ),
+      GatewayIssue.listenerEnded => context.tr(
+        '本机监听已意外结束。',
+        'The local listener ended unexpectedly.',
+      ),
+      null => null,
+    };
     final colors = context.magpie;
     final type = Theme.of(context).textTheme;
     return SurfaceCard(
@@ -131,57 +182,99 @@ class _GatewayCard extends StatelessWidget {
                 radius: 11,
               ),
               const SizedBox(width: 9),
-              Expanded(child: Text('Gateway', style: type.titleMedium)),
-              const DemoBadge(),
+              Expanded(
+                child: Text(
+                  'Gateway',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: type.titleMedium,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: DemoBadge(
+                  compact: true,
+                  label: context.tr('仅本机', 'Loopback only'),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 19),
-          Text(
-            context.tr('未连接 Magpie 服务', 'Not connected to Magpie service'),
-            style: type.headlineMedium,
-          ),
+          Text(status, style: type.headlineMedium),
           const SizedBox(height: 4),
+          Text('http://${gateway.address}', style: type.bodyMedium),
+          const SizedBox(height: 12),
           Text(
-            context.tr('演示状态：Gateway 运行正常', 'Demo status: Gateway is healthy'),
+            context.tr(
+              '${gateway.configuredCount}/5 种协议路由已配置 · ${gateway.readyCount} 条就绪；不做跨协议转换或账号路由',
+              '${gateway.configuredCount}/5 protocol routes configured · ${gateway.readyCount} ready; no cross-protocol translation or account-based routing',
+            ),
             style: type.bodyMedium,
           ),
-          const SizedBox(height: 16),
-          SurfaceCard(
-            color: colors.paper,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
-            radius: 19,
-            shadow: false,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final columns =
-                    constraints.maxWidth >=
-                        MediaQuery.textScalerOf(context).scale(166)
-                    ? 3
-                    : 2;
-                return Wrap(
-                  runSpacing: 10,
-                  children: [
-                    for (final (value, label) in [
-                      ('42 ms', context.tr('模拟延迟', 'Simulated latency')),
-                      ('3d 14h', context.tr('示例运行时长', 'Sample uptime')),
-                      (
-                        context.tr('2 分钟前', '2 min ago'),
-                        context.tr('示例更新时间', 'Sample updated'),
-                      ),
-                    ])
-                      SizedBox(
-                        width: constraints.maxWidth / columns - 0.01,
-                        child: MetricBlock(
-                          value: value,
-                          label: label,
-                          align: CrossAxisAlignment.center,
-                          valueSize: 15,
-                        ),
-                      ),
-                  ],
-                );
-              },
+          if (gateway.accessToken case final token?) ...[
+            const SizedBox(height: 8),
+            Text(
+              context.tr(
+                '本机客户端密钥（仅此次网关启动有效）',
+                'Local client key (this gateway run only)',
+              ),
             ),
+            Row(
+              children: [
+                Expanded(
+                  child: SelectableText(
+                    token,
+                    key: const ValueKey('gateway-access-token'),
+                    style: type.bodySmall,
+                  ),
+                ),
+                IconButton(
+                  key: const ValueKey('copy-gateway-access-token'),
+                  tooltip: context.tr('复制本机密钥', 'Copy local client key'),
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: token));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(context.tr('已复制', 'Copied')),
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.copy_rounded),
+                ),
+              ],
+            ),
+          ],
+          if (issue != null) ...[
+            const SizedBox(height: 8),
+            Semantics(
+              liveRegion: true,
+              child: Text(issue, style: TextStyle(color: context.magpie.amber)),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                key: const ValueKey('gateway-toggle-button'),
+                onPressed: running
+                    ? gateway.stop
+                    : gateway.canConfigure
+                    ? gateway.start
+                    : null,
+                icon: Icon(
+                  running ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                ),
+                label: Text(
+                  running
+                      ? context.tr('停止本机网关', 'Stop local gateway')
+                      : context.tr('启动本机网关', 'Start local gateway'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -397,16 +490,16 @@ class _PrototypeNote extends StatelessWidget {
   Widget build(BuildContext context) {
     return InfoBanner(
       icon: Icons.science_outlined,
-      title: context.tr('这是一个 UI 原型', 'This is a UI prototype'),
+      title: context.tr('其他功能仍是原型', 'Other features are prototypes'),
       body: context.tr(
-        '所有服务状态、指标与操作均为本地演示；不会连接 Magpie 服务、'
-        '保存凭据或访问文件系统。',
-        'All service states, metrics, and actions are local demos; '
-            'nothing connects to the Magpie service, stores credentials, '
-            'or touches the filesystem.',
+        '网关运行在当前应用进程中。Agent、Skills 和 MCP 页面仍使用演示数据。',
+        'The gateway runs in the app process. Agents, Skills, and MCP still use demo data.'
       ),
       onTap: onOpenBoundary,
-      actionLabel: context.tr('查看沙箱与权限边界', 'View sandbox & permission boundary'),
+      actionLabel: context.tr(
+        '查看沙箱与权限边界',
+        'View sandbox & permission boundary',
+      ),
       tint: context.magpie.paper,
       accent: context.magpie.inkSoft,
     );

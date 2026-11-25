@@ -134,7 +134,7 @@ class _ProviderEditorPageState extends State<ProviderEditorPage> {
                                   : context.tr('新增一条模型路由', 'Add a model route'),
                               style: Theme.of(
                                 context,
-                              ).textTheme.displayMedium?.copyWith(fontSize: 30),
+                              ).textTheme.displayMedium?.copyWith(fontSize: 32),
                             ),
                             const SizedBox(height: 7),
                             Text(
@@ -144,7 +144,7 @@ class _ProviderEditorPageState extends State<ProviderEditorPage> {
                               ),
                               style: Theme.of(
                                 context,
-                              ).textTheme.bodyMedium?.copyWith(fontSize: 13),
+                              ).textTheme.bodyMedium?.copyWith(fontSize: 15),
                             ),
                             const SizedBox(height: 22),
                             _FieldLabel(context.tr('供应商类型', 'Provider type')),
@@ -206,6 +206,7 @@ class _ProviderEditorPageState extends State<ProviderEditorPage> {
                                   '可以是 https 地址或 localhost 占位地址。',
                                   'Use an HTTPS URL or a localhost placeholder.',
                                 ),
+                                helperMaxLines: 2,
                               ),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
@@ -229,6 +230,7 @@ class _ProviderEditorPageState extends State<ProviderEditorPage> {
                                   '只保存引用名。请勿在这里输入真实密钥。',
                                   'Stores a reference only. Do not enter a real API key here.',
                                 ),
+                                helperMaxLines: 2,
                               ),
                             ),
                             const SizedBox(height: 15),
@@ -243,6 +245,7 @@ class _ProviderEditorPageState extends State<ProviderEditorPage> {
                                   '使用英文逗号或中文逗号分隔；留空将使用示例模型。',
                                   'Separate with commas; leave blank to use a demo model.',
                                 ),
+                                helperMaxLines: 2,
                               ),
                             ),
                             const SizedBox(height: 15),
@@ -275,7 +278,7 @@ class _ProviderEditorPageState extends State<ProviderEditorPage> {
                                           ),
                                           style: TextStyle(
                                             color: context.magpie.ink,
-                                            fontSize: 13,
+                                            fontSize: 15,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
@@ -288,7 +291,7 @@ class _ProviderEditorPageState extends State<ProviderEditorPage> {
                                           style: Theme.of(context)
                                               .textTheme
                                               .bodySmall
-                                              ?.copyWith(fontSize: 10.5),
+                                              ?.copyWith(fontSize: 13),
                                         ),
                                       ],
                                     ),
@@ -366,7 +369,7 @@ class _FieldLabel extends StatelessWidget {
       label,
       style: TextStyle(
         color: context.magpie.ink,
-        fontSize: 12.5,
+        fontSize: 14,
         fontWeight: FontWeight.w600,
       ),
     );
@@ -416,7 +419,7 @@ class _KindOption extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: context.magpie.ink,
-                        fontSize: 11.5,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -427,7 +430,7 @@ class _KindOption extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: context.magpie.faint,
-                        fontSize: 8.5,
+                        fontSize: 11,
                       ),
                     ),
                   ],

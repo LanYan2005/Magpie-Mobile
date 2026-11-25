@@ -1,5 +1,5 @@
 name: magpie_mobile
-description: "Magpie Android + iOS 移动控制台 UI 原型（本地演示数据，不连接服务）。"
+description: "Magpie Android + iOS 本机网关与移动控制台原型。"
 publish_to: "none"
 version: 0.1.0+1
 

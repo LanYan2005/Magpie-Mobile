@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magpie_mobile/app.dart';
+import 'package:magpie_mobile/gateway/gateway_upstream.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  Future<void> pumpApp(WidgetTester tester) async {
+  Future<void> pumpApp(
+    WidgetTester tester, {
+    SharedPreferences? preferences,
+  }) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(const MagpieApp());
+    await tester.pumpWidget(MagpieApp(preferences: preferences));
     await tester.pumpAndSettle();
   }
 
@@ -17,14 +22,14 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('概览显示演示网关，并可进入设置页', (tester) async {
+  testWidgets('概览默认停止网关，并可进入设置页', (tester) async {
     await pumpApp(tester);
 
     expect(find.text('概览'), findsWidgets);
-    expect(find.text('未连接 Magpie 服务'), findsOneWidget);
-    expect(find.text('演示状态：Gateway 运行正常'), findsOneWidget);
+    expect(find.text('http://127.0.0.1:3425'), findsOneWidget);
+    expect(find.text('本机网关已停止'), findsOneWidget);
     expect(find.text('近期信息'), findsOneWidget);
-    expect(find.text('这是一个 UI 原型'), findsOneWidget);
+    expect(find.text('其他功能仍是原型'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('open-settings-button')));
     await tester.pumpAndSettle();
@@ -44,12 +49,39 @@ void main() {
     expect(find.text('Gateway'), findsOneWidget);
   });
 
-  testWidgets('四大主导航均可切换并保持页面内容', (tester) async {
-    await pumpApp(tester);
+  testWidgets('供应商主区域显示五类真实路由并从当前控制器编辑保存', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    await pumpApp(tester, preferences: preferences);
 
     await switchTab(tester, 'nav-providers');
-    expect(find.text('Anthropic 官方'), findsOneWidget);
-    expect(find.text('OpenAI 兼容网关'), findsOneWidget);
+    for (final protocol in GatewayProtocol.values) {
+      expect(find.byKey(ValueKey('gateway-route-${protocol.name}')), findsOneWidget);
+    }
+    expect(find.text('未配置'), findsNWidgets(5));
+    expect(find.text('Anthropic 官方'), findsNothing);
+    expect(find.byKey(const ValueKey('providers-gateway-routes')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('gateway-route-chat')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('gateway-route-endpoint')),
+      'https://api.example.com/v1/chat/completions',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('gateway-route-key')),
+      'fixture-key-024',
+    );
+    await tester.tap(find.byKey(const ValueKey('gateway-route-save')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('https://api.example.com/v1/chat/completions'), findsOneWidget);
+    expect(find.text('已配置 · 已载入密钥'), findsOneWidget);
+    expect(
+      preferences.getString('magpie.gateway.route.chat'),
+      contains('https://api.example.com/v1/chat/completions'),
+    );
+    expect(preferences.getString('magpie.gateway.route.chat'), isNot(contains('fixture-key-024')));
 
     await switchTab(tester, 'nav-agents');
     expect(find.text('Claude Code'), findsOneWidget);
@@ -61,47 +93,16 @@ void main() {
     expect(find.text('code-review'), findsOneWidget);
 
     await switchTab(tester, 'nav-overview');
-    expect(find.text('演示状态：Gateway 运行正常'), findsOneWidget);
+    expect(find.text('本机网关已停止'), findsOneWidget);
   });
 
-  testWidgets('供应商详情可打开连接测试，并明确不发起网络请求', (tester) async {
+  testWidgets('Agent 所需的旧供应商示例保留在内部数据而不冒充真实路由', (tester) async {
     await pumpApp(tester);
     await switchTab(tester, 'nav-providers');
 
-    await tester.tap(find.text('Anthropic 官方'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('供应商详情'), findsOneWidget);
-    expect(find.text('可用模型'), findsWidgets);
-    expect(find.text('env:ANTHROPIC_API_KEY'), findsOneWidget);
-
-    await tester.ensureVisible(find.text('测试连接'));
-    await tester.tap(find.text('测试连接'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('连接测试'), findsOneWidget);
-    expect(find.text('没有发起网络请求'), findsOneWidget);
-    expect(find.text('完成'), findsOneWidget);
-  });
-
-  testWidgets('添加供应商会更新本地演示列表', (tester) async {
-    await pumpApp(tester);
-    await switchTab(tester, 'nav-providers');
-
-    await tester.tap(find.byKey(const ValueKey('add-provider-button')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('新增一条模型路由'), findsOneWidget);
-    final fields = find.byType(TextFormField);
-    await tester.enterText(fields.at(0), '演示供应商');
-    await tester.enterText(fields.at(1), 'https://demo.example.com/v1');
-    await tester.pump();
-
-    await tester.tap(find.byKey(const ValueKey('save-provider-button')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('演示供应商'), findsOneWidget);
-    expect(find.text('需配置'), findsWidgets);
+    expect(find.text('Anthropic 官方'), findsNothing);
+    expect(find.byKey(const ValueKey('gateway-route-anthropic')), findsOneWidget);
+    expect(find.text('真实供应商'), findsNothing);
   });
 
   testWidgets('Agent 编辑器支持切换配置类型与 Termux 接入方式', (tester) async {

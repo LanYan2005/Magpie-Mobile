@@ -636,30 +636,23 @@ class McpCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            server.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(
-                                  fontSize: 13.5,
-                                  fontFamily: 'monospace',
-                                ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        TagChip(
-                          label: isStdio
-                              ? context.tr('本地 · 仅配置', 'Local · settings only')
-                              : context.tr('远程', 'Remote'),
-                          color: remoteColor,
-                          background: remoteBackground,
-                          borderColor: remoteColor.withValues(alpha: 0.12),
-                        ),
-                      ],
+                    Text(
+                      server.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontSize: 14,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TagChip(
+                      label: isStdio
+                          ? context.tr('本地 · 仅配置', 'Local · settings only')
+                          : context.tr('远程', 'Remote'),
+                      color: remoteColor,
+                      background: remoteBackground,
+                      borderColor: remoteColor.withValues(alpha: 0.12),
                     ),
                     const SizedBox(height: 4),
                     Text(

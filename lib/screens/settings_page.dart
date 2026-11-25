@@ -21,8 +21,8 @@ class SettingsPage extends StatelessWidget {
           title: Text(dialogContext.tr('重置演示数据？', 'Reset demo data?')),
           content: Text(
             dialogContext.tr(
-              '会丢弃当前会话中新增的供应商、Agent、Skill 和 MCP，并恢复初始示例。不会影响任何真实配置。',
-              'This discards providers, Agents, Skills, and MCP configurations added in this session and restores the examples. Real configurations are not affected.',
+              '会恢复 Agent、Skill、MCP 和内部供应商示例的初始数据，不影响网关上游配置。',
+              'This restores the initial Agent, Skill, MCP, and internal provider examples. Gateway upstream settings are not affected.'
             ),
           ),
           actions: [
@@ -110,8 +110,8 @@ class SettingsPage extends StatelessWidget {
                               'Magpie service connection',
                             ),
                             subtitle: t(
-                              '未接入网关、账号或远程配置',
-                              'No gateway, account, or remote configuration is connected',
+                              '原版 Go 核心、账号和远程配置尚未接入',
+                              'Upstream Go core, accounts and remote settings are not connected',
                             ),
                             trailing: _tag(
                               context,
@@ -139,12 +139,12 @@ class SettingsPage extends StatelessWidget {
                             icon: Icons.wifi_off_rounded,
                             title: t('网络请求', 'Network requests'),
                             subtitle: t(
-                              '没有 API 调用、MCP 握手或遥测',
-                              'No API calls, MCP handshakes, or telemetry',
+                              '仅已启动的本机网关会按协议转发至该协议保存的上游',
+                              'Only the running local gateway forwards requests to the upstream saved for that protocol',
                             ),
                             trailing: _tag(
                               context,
-                              t('无', 'None'),
+                              t('按需', 'On demand'),
                               context.magpie.jade,
                               background: context.magpie.mintSoft,
                             ),
@@ -157,8 +157,8 @@ class SettingsPage extends StatelessWidget {
                               'Credentials and system permissions',
                             ),
                             subtitle: t(
-                              '不保存密钥，不申请存储或终端权限',
-                              'No keys are stored; storage and terminal permissions are not requested',
+                              '网关上游密钥仅保留在进程内存；不申请存储或终端权限',
+                              'Gateway upstream keys stay in process memory; no storage or terminal permission is requested',
                             ),
                             trailing: _tag(
                               context,
