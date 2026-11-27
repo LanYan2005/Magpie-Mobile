@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../core/magpie_l10n.dart';
 import '../core/magpie_motion.dart';
 import '../core/magpie_theme.dart';
+import '../core/magpie_tokens.dart';
 import '../data/demo_data.dart';
 import '../models/magpie_models.dart';
 import '../state/magpie_store.dart';
@@ -13,7 +14,7 @@ import 'primitives.dart';
 class SheetSurface extends StatelessWidget {
   const SheetSurface({
     required this.child,
-    this.padding = const EdgeInsets.fromLTRB(20, 10, 20, 20),
+    this.padding = const EdgeInsets.fromLTRB(16, 8, 16, 16),
     super.key,
   });
 
@@ -27,8 +28,10 @@ class SheetSurface extends StatelessWidget {
         maxHeight: MediaQuery.sizeOf(context).height * 0.9,
       ),
       decoration: BoxDecoration(
-        color: context.magpie.paper,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        color: context.tokens.card,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(MagpieMetrics.popRadius),
+        ),
         border: Border(top: BorderSide(color: context.magpie.line)),
       ),
       child: SafeArea(
@@ -46,9 +49,9 @@ class SheetHandle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        width: 38,
-        height: 4,
-        margin: const EdgeInsets.only(bottom: 14),
+        width: 32,
+        height: 3,
+        margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
           color: context.magpie.lineStrong,
           borderRadius: BorderRadius.circular(99),
@@ -259,47 +262,42 @@ class _SandboxNote extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: accent.withValues(alpha: 0.12)),
+        color: context.tokens.card,
+        borderRadius: BorderRadius.circular(MagpieMetrics.listRadius),
+        border: Border.all(color: context.tokens.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: accent),
+              Icon(icon, size: 15, color: accent),
               const SizedBox(width: 7),
-              Text(
-                platform,
-                style: TextStyle(
-                  color: accent,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: context.tokens.fg,
+                    fontSize: MagpieType.rowName,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
+              MagpieBadge(label: platform),
             ],
           ),
-          const SizedBox(height: 9),
-          Text(
-            title,
-            style: TextStyle(
-              color: context.magpie.ink,
-              fontSize: 13.5,
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-            ),
-          ),
           const SizedBox(height: 5),
-          Text(
-            body,
-            style: TextStyle(
-              color: accent.withValues(alpha: 0.84),
-              fontSize: 11.5,
-              height: 1.55,
+          Padding(
+            padding: const EdgeInsets.only(left: 22),
+            child: Text(
+              body,
+              style: TextStyle(
+                color: context.tokens.muted,
+                fontSize: MagpieType.rowSub,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -436,9 +434,12 @@ class _SkillEditorSheetState extends State<_SkillEditorSheet> {
                   'Manage demo content in Magpie only',
                 ),
                 icon: Icons.extension_outlined,
-                trailing: DemoBadge(label: context.tr('演示内容', 'Demo content')),
+                trailing: MagpieBadge(
+                  label: context.tr('演示', 'Demo'),
+                  tone: MagpieBadgeTone.accent,
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextFormField(
                 key: const ValueKey('skill-name-field'),
                 controller: _nameController,
@@ -865,7 +866,7 @@ class _McpEditorSheetState extends State<_McpEditorSheet> {
                   label: context.tr('配置演示', 'Configuration demo'),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextFormField(
                 key: const ValueKey('mcp-name-field'),
                 controller: _nameController,

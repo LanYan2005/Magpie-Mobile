@@ -8,11 +8,29 @@ import 'package:magpie_mobile/gateway/gateway_presets.dart';
 import 'package:magpie_mobile/gateway/gateway_settings.dart';
 import 'package:magpie_mobile/gateway/gateway_upstream.dart';
 import 'package:magpie_mobile/gateway/loopback_gateway.dart';
+import 'package:magpie_mobile/gateway/provider_credentials.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _host = GatewayUpstream.host;
 const _chat = '/v1/chat/completions';
 const _key = 'fixture-key-024';
+
+class _MemoryProviderCredentials implements ProviderCredentials {
+  final _values = <String, String>{};
+
+  @override
+  Future<String?> read(String id) async => _values[id];
+
+  @override
+  Future<void> write(String id, String value) async {
+    _values[id] = value;
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    _values.remove(id);
+  }
+}
 
 void main() {
   late HttpServer upstream;
@@ -65,6 +83,30 @@ void main() {
 
   Future<String> read(HttpClientResponse response) =>
       utf8.decoder.bind(response).join();
+
+  Future<GatewayController> createController(
+    SharedPreferences prefs,
+    ProviderCredentials credentials, {
+    int listenPort = 0,
+  }) async {
+    final controller = GatewayController.forTest(
+      prefs,
+      listenPort,
+      credentials: credentials,
+    );
+    addTearDown(() async {
+      await controller.stop();
+      controller.dispose();
+    });
+    await controller.initialized;
+    return controller;
+  }
+
+  ProviderCatalog readCatalog(SharedPreferences prefs) =>
+      ProviderCatalog.decode(
+        jsonDecode(prefs.getString(GatewaySettings.catalogKey)!),
+        allowReferences: true,
+      );
 
   Future<HttpClientResponse> sendLocal(
     LoopbackGateway gateway,
@@ -599,41 +641,117 @@ void main() {
     },
   );
 
+  test('creates provider and first account atomically', () async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final credentials = _MemoryProviderCredentials();
+    final controller = await createController(prefs, credentials);
+
+    expect(
+      await controller.createProvider(
+        providerName: 'Fixture',
+        accountName: 'Chat',
+        protocol: GatewayProtocol.chat,
+        endpoint: 'invalid endpoint',
+        requiresKey: false,
+        apiKey: '',
+        models: const [],
+        selected: true,
+      ),
+      isNull,
+    );
+    expect(controller.providers, isEmpty);
+    expect(prefs.getString(GatewaySettings.catalogKey), isNull);
+
+    expect(
+      await controller.createProvider(
+        providerName: 'Fixture',
+        accountName: 'Chat',
+        protocol: GatewayProtocol.chat,
+        endpoint: 'https://example.invalid/v1/chat/completions',
+        requiresKey: true,
+        apiKey: 'invalid key!',
+        models: const [],
+        selected: true,
+      ),
+      isNull,
+    );
+    expect(controller.providers, isEmpty);
+    expect(prefs.getString(GatewaySettings.catalogKey), isNull);
+    expect(credentials._values, isEmpty);
+
+    expect(
+      await controller.createProvider(
+        providerName: 'Fixture',
+        accountName: 'Chat',
+        protocol: GatewayProtocol.chat,
+        endpoint: 'https://example.invalid/v1/chat/completions',
+        requiresKey: false,
+        apiKey: '',
+        models: const ['fixture-model'],
+        selected: true,
+      ),
+      isNotNull,
+    );
+    final provider = controller.providers.single;
+    expect(provider.name, 'Fixture');
+    expect(provider.accounts.single.name, 'Chat');
+    expect(provider.accounts.single.models, ['fixture-model']);
+    expect(
+      controller.selectedAccountId(GatewayProtocol.chat),
+      provider.accounts.single.id,
+    );
+    expect(prefs.getString(GatewaySettings.catalogKey), isNotNull);
+  });
+
   test(
     'stops listening, rotates the token on restart, and reports occupied port',
     () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final firstListener = await start();
-      final controller = GatewayController.forTest(prefs, firstListener.port);
-      addTearDown(controller.dispose);
+      final controller = await createController(
+        prefs,
+        _MemoryProviderCredentials(),
+        listenPort: firstListener.port,
+      );
       expect(await controller.start(), isFalse);
       expect(controller.issue, GatewayIssue.missingUpstream);
-      expect(
-        await controller.saveRoute(
-          GatewayProtocol.chat,
-          upstreamUrl(),
-          _key,
-          requiresKey: true,
-        ),
-        isTrue,
-      );
-      expect(prefs.getKeys(), {GatewaySettings.routeKey(GatewayProtocol.chat)});
+      final providerId = (await controller.createProvider(
+        providerName: 'Fixture',
+        accountName: 'Chat',
+        protocol: GatewayProtocol.chat,
+        endpoint: upstreamUrl(),
+        requiresKey: true,
+        apiKey: _key,
+        models: const [],
+        selected: true,
+      ))!;
       expect(await controller.start(), isFalse);
       expect(controller.state, GatewayState.stopped);
       expect(controller.issue, GatewayIssue.portInUse);
       await firstListener.stop();
       expect(await controller.start(), isTrue);
+      expect(controller.state, GatewayState.running);
       final firstToken = controller.accessToken!;
+      final firstHealth = await send('/health', token: firstToken);
+      expect(firstHealth.statusCode, 200);
+      await firstHealth.drain<void>();
       expect(
-        await controller.saveRoute(
-          GatewayProtocol.chat,
-          'https://example.invalid/v1/chat/completions',
-          '',
+        await controller.saveAccount(
+          providerId: providerId,
+          accountId: controller.selectedAccountId(GatewayProtocol.chat),
+          name: 'Chat',
+          protocol: GatewayProtocol.chat,
+          endpoint: 'https://example.invalid/v1/chat/completions',
           requiresKey: false,
+          apiKey: '',
+          models: const [],
+          selected: true,
         ),
         isFalse,
       );
+      expect(controller.endpointFor(GatewayProtocol.chat), upstreamUrl());
       await controller.stop();
       expect(controller.state, GatewayState.stopped);
       expect(controller.accessToken, isNull);
@@ -642,70 +760,188 @@ void main() {
         throwsA(isA<SocketException>()),
       );
       expect(await controller.start(), isTrue);
-      expect(controller.accessToken, isNot(firstToken));
-      expect((await send('/health', token: firstToken)).statusCode, 401);
-      await controller.stop();
+      final nextToken = controller.accessToken!;
+      expect(nextToken, isNot(firstToken));
+      final staleHealth = await send('/health', token: firstToken);
+      expect(staleHealth.statusCode, 401);
+      await staleHealth.drain<void>();
+      final nextHealth = await send('/health', token: nextToken);
+      expect(nextHealth.statusCode, 200);
+      await nextHealth.drain<void>();
     },
   );
 
   test(
-    'restores independent routes without API keys, downgrade or autostart',
+    'restores selected accounts and keeps credentials out of preferences',
     () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
-      final original = GatewayController(preferences: prefs);
-      expect(
-        await original.saveRoute(
-          GatewayProtocol.chat,
-          upstreamUrl(),
-          _key,
-          requiresKey: true,
-        ),
-        isTrue,
-      );
+      final credentials = _MemoryProviderCredentials();
+      final original = await createController(prefs, credentials);
+      final providerId = (await original.createProvider(
+        providerName: 'Fixture',
+        accountName: 'Chat',
+        protocol: GatewayProtocol.chat,
+        endpoint: upstreamUrl(),
+        requiresKey: true,
+        apiKey: _key,
+        models: const ['fixture-model'],
+        selected: true,
+      ))!;
       final responsesUrl = upstreamUrl('/test/responses');
       expect(
-        await original.saveRoute(
-          GatewayProtocol.responses,
-          responsesUrl,
-          '',
+        await original.saveAccount(
+          providerId: providerId,
+          name: 'Responses',
+          protocol: GatewayProtocol.responses,
+          endpoint: responsesUrl,
           requiresKey: false,
+          apiKey: '',
+          models: const [],
+          selected: true,
         ),
         isTrue,
       );
+      await prefs.reload();
+      expect(prefs.getKeys(), {GatewaySettings.catalogKey});
       expect(
-        prefs.getKeys().map((key) => prefs.get(key)),
-        everyElement(isNot(contains(_key))),
+        prefs.getString(GatewaySettings.catalogKey),
+        isNot(contains(_key)),
       );
-      original.dispose();
-      final gateway = GatewayController.forTest(prefs, 0);
-      addTearDown(gateway.dispose);
-      expect(gateway.state, GatewayState.stopped);
-      expect(gateway.endpointFor(GatewayProtocol.chat), upstreamUrl());
-      expect(gateway.endpointFor(GatewayProtocol.responses), responsesUrl);
-      expect(gateway.configuredCount, 2);
-      expect(gateway.readyCount, 1);
-      final auth = Completer<String?>();
+      final catalog = readCatalog(prefs);
+      final provider = catalog.providers.single;
+      expect(provider.id, providerId);
+      expect(provider.name, 'Fixture');
+      final chat = provider.accounts.singleWhere(
+        (account) => account.protocol == GatewayProtocol.chat,
+      );
+      final responses = provider.accounts.singleWhere(
+        (account) => account.protocol == GatewayProtocol.responses,
+      );
+      expect(chat.requiresKey, isTrue);
+      expect(chat.models, ['fixture-model']);
+      expect(await credentials.read(chat.credentialId!), _key);
+      expect(responses.requiresKey, isFalse);
+      expect(responses.credentialId, isNull);
+      expect(catalog.selected, {
+        GatewayProtocol.chat: chat.id,
+        GatewayProtocol.responses: responses.id,
+      });
+
+      final seen = <(String, String?)>[];
       upstream.listen((request) async {
-        auth.complete(request.headers.value('authorization'));
+        seen.add((request.uri.path, request.headers.value('authorization')));
         await request.drain<void>();
-        request.response.headers.contentType = ContentType.json;
-        request.response.write('{}');
+        request.response
+          ..headers.contentType = ContentType.json
+          ..write('{}');
         await request.response.close();
       });
-      expect(await gateway.start(), isTrue);
-      port = int.parse(gateway.address.split(':').last);
-      Future<HttpClientResponse> post(String path) =>
-          send(path, method: 'POST', token: gateway.accessToken, body: '{}');
-      final missingKey = await post(_chat);
+
+      final restored = await createController(prefs, credentials);
+      expect(restored.state, GatewayState.stopped);
+      expect(restored.accessToken, isNull);
+      expect(restored.endpointFor(GatewayProtocol.chat), upstreamUrl());
+      expect(restored.endpointFor(GatewayProtocol.responses), responsesUrl);
+      expect(restored.configuredCount, 2);
+      expect(restored.readyCount, 2);
+
+      Future<HttpClientResponse> post(
+        GatewayController controller,
+        String path,
+      ) =>
+          send(path, method: 'POST', token: controller.accessToken, body: '{}');
+
+      expect(await restored.start(), isTrue);
+      port = int.parse(restored.address.split(':').last);
+      final chatResponse = await post(restored, _chat);
+      expect(chatResponse.statusCode, 200);
+      await chatResponse.drain<void>();
+      await restored.stop();
+
+      final withoutCredentials = await createController(
+        prefs,
+        _MemoryProviderCredentials(),
+      );
+      expect(withoutCredentials.configuredCount, 2);
+      expect(withoutCredentials.readyCount, 1);
+      expect(await withoutCredentials.start(), isTrue);
+      port = int.parse(withoutCredentials.address.split(':').last);
+      final missingKey = await post(withoutCredentials, _chat);
       expect(missingKey.statusCode, 503);
       expect(await read(missingKey), contains('API key missing'));
-      final missingRoute = await post('/v1/messages');
+      final missingRoute = await post(withoutCredentials, '/v1/messages');
       expect(missingRoute.statusCode, 503);
       expect(await read(missingRoute), contains('No upstream configured'));
-      expect((await post('/v1/responses')).statusCode, 200);
-      expect(await auth.future, isNull);
-      await gateway.stop();
+      final keylessResponse = await post(withoutCredentials, '/v1/responses');
+      expect(keylessResponse.statusCode, 200);
+      await keylessResponse.drain<void>();
+      expect(seen, [
+        ('/test/v1/chat/completions', 'Bearer $_key'),
+        ('/test/responses', null),
+      ]);
+    },
+  );
+
+  test(
+    'migrates legacy routes into a persisted catalog without autostart',
+    () async {
+      final responsesUrl = upstreamUrl('/test/responses');
+      final legacy = {
+        GatewaySettings.routeKey(GatewayProtocol.chat): jsonEncode({
+          'endpoint': upstreamUrl(),
+          'requiresKey': true,
+        }),
+        GatewaySettings.routeKey(GatewayProtocol.responses): jsonEncode({
+          'endpoint': responsesUrl,
+          'requiresKey': false,
+        }),
+        GatewaySettings.routeKey(GatewayProtocol.anthropic): 'null',
+      };
+      SharedPreferences.setMockInitialValues(legacy);
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = _MemoryProviderCredentials();
+      final migrated = await createController(prefs, credentials);
+      expect(migrated.loadIssue, isNull);
+      expect(migrated.state, GatewayState.stopped);
+      expect(migrated.accessToken, isNull);
+      expect(migrated.configuredCount, 2);
+      expect(migrated.readyCount, 1);
+
+      await prefs.reload();
+      expect(prefs.getKeys(), {...legacy.keys, GatewaySettings.catalogKey});
+      for (final entry in legacy.entries) {
+        expect(prefs.getString(entry.key), entry.value);
+      }
+      final catalog = readCatalog(prefs);
+      final accounts = {
+        for (final account in catalog.providers.single.accounts)
+          account.protocol: account,
+      };
+      expect(
+        accounts.keys,
+        unorderedEquals([GatewayProtocol.chat, GatewayProtocol.responses]),
+      );
+      final chat = accounts[GatewayProtocol.chat]!;
+      final responses = accounts[GatewayProtocol.responses]!;
+      expect(chat.requiresKey, isTrue);
+      expect(responses.requiresKey, isFalse);
+      expect(
+        accounts.values.map((account) => account.credentialId),
+        everyElement(isNull),
+      );
+      expect(catalog.selected, {
+        GatewayProtocol.chat: chat.id,
+        GatewayProtocol.responses: responses.id,
+      });
+
+      final restored = await createController(prefs, credentials);
+      expect(restored.loadIssue, isNull);
+      expect(restored.state, GatewayState.stopped);
+      expect(restored.endpointFor(GatewayProtocol.chat), upstreamUrl());
+      expect(restored.endpointFor(GatewayProtocol.responses), responsesUrl);
+      expect(restored.configuredCount, 2);
+      expect(restored.readyCount, 1);
     },
   );
 

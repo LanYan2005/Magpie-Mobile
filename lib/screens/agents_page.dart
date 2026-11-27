@@ -25,6 +25,7 @@ class _AgentsPageState extends State<AgentsPage> {
   String? _newAgentId;
   String? _expandedAgentId;
   bool _showMore = false;
+  final Map<String, bool> _agentEnabled = {};
 
   Future<void> _openEditor({
     AgentConfig? agent,
@@ -67,6 +68,11 @@ class _AgentsPageState extends State<AgentsPage> {
           key: ValueKey('agent-row-${agent.id}'),
           agent: agent,
           expanded: _expandedAgentId == agent.id,
+          enabled:
+              _agentEnabled[agent.id] ?? agent.status != AgentStatus.paused,
+          onEnabledChanged: (value) => setState(() {
+            _agentEnabled[agent.id] = value;
+          }),
           onOpen: (section) => _openEditor(agent: agent, section: section),
           onToggle: () => setState(() {
             _expandedAgentId = _expandedAgentId == agent.id ? null : agent.id;
@@ -227,8 +233,8 @@ class _AgentsPageState extends State<AgentsPage> {
                 const SizedBox(height: 12),
                 Text(
                   context.tr(
-                    'Agent 配置仅保留在本次会话中。运行时与系统接入尚未实现。',
-                    'Agent configurations last for this session. Runtime and system integration are unavailable.',
+                    'Agent 配置仅保留在本次会话中。开关仅记录当前页面的演示状态，运行时与系统接入尚未实现。',
+                    'Agent configurations last for this session. Switches are demo state for this page; runtime and system integration are unavailable.',
                   ),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
@@ -252,6 +258,8 @@ class _AgentRow extends StatelessWidget {
   const _AgentRow({
     required this.agent,
     required this.expanded,
+    required this.enabled,
+    required this.onEnabledChanged,
     required this.onOpen,
     required this.onToggle,
     super.key,
@@ -259,6 +267,8 @@ class _AgentRow extends StatelessWidget {
 
   final AgentConfig agent;
   final bool expanded;
+  final bool enabled;
+  final ValueChanged<bool> onEnabledChanged;
   final ValueChanged<AgentEditorSection?> onOpen;
   final VoidCallback onToggle;
 
@@ -296,7 +306,7 @@ class _AgentRow extends StatelessWidget {
                         name,
                         style: TextStyle(
                           color: colors.ink,
-                          fontSize: 14.5,
+                          fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -306,6 +316,14 @@ class _AgentRow extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+              ),
+              Semantics(
+                label: context.tr('$name 演示开关', '$name demo toggle'),
+                child: Switch(
+                  key: ValueKey('agent-switch-${agent.id}'),
+                  value: enabled,
+                  onChanged: onEnabledChanged,
                 ),
               ),
               AnimatedRotation(
@@ -451,35 +469,41 @@ class _AgentField extends StatelessWidget {
       excludeSemantics: true,
       onTap: onTap,
       child: Material(
-        color: colors.canvasDeep,
-        borderRadius: shape,
+        color: Colors.transparent,
         child: InkWell(
           borderRadius: shape,
           onTap: onTap,
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 44),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      value,
-                      style: TextStyle(
-                        color: colors.ink,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
+            child: Center(
+              widthFactor: 1,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: colors.canvasDeep,
+                  borderRadius: shape,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          color: colors.ink,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 5),
-                  Icon(
-                    Icons.expand_more_rounded,
-                    size: 16,
-                    color: colors.muted,
-                  ),
-                ],
+                    const SizedBox(width: 5),
+                    Icon(
+                      Icons.expand_more_rounded,
+                      size: 16,
+                      color: colors.muted,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

@@ -1,94 +1,90 @@
 import 'package:flutter/material.dart';
 
-import '../core/domain_style.dart';
 import '../core/magpie_l10n.dart';
-import '../core/magpie_motion.dart';
-import '../core/magpie_theme.dart';
-import '../data/demo_data.dart';
-import '../models/magpie_models.dart';
-import '../state/magpie_store.dart';
+import '../core/magpie_tokens.dart';
+import '../gateway/gateway_controller.dart';
+import '../gateway/gateway_scope.dart';
 import '../widgets/app_canvas.dart';
+import '../widgets/magpie_icon.dart';
 import '../widgets/primitives.dart';
-import '../widgets/sheets.dart';
+import '../widgets/provider_icon.dart';
+import 'gateway_routes_page.dart';
 import 'provider_editor_page.dart';
 
 class ProviderDetailPage extends StatefulWidget {
-  const ProviderDetailPage({required this.providerId, super.key});
+  const ProviderDetailPage({
+    required this.providerId,
+    this.hideAccounts = false,
+    super.key,
+  });
 
   final String providerId;
+  final bool hideAccounts;
 
   @override
   State<ProviderDetailPage> createState() => _ProviderDetailPageState();
 }
 
 class _ProviderDetailPageState extends State<ProviderDetailPage> {
-  ProviderConfig? _providerFrom(MagpieStore store) {
-    for (final provider in store.providers) {
-      if (provider.id == widget.providerId) {
-        return provider;
-      }
-    }
-    return null;
+  Future<void> _open(Widget page) async {
+    await Navigator.of(
+      context,
+    ).push<dynamic>(MaterialPageRoute<dynamic>(builder: (_) => page));
   }
 
-  Future<void> _edit(ProviderConfig provider) async {
-    await Navigator.of(context).push<ProviderConfig>(
-      MagpiePageRoute<ProviderConfig>(
-        context,
+  Future<void> _editName(UpstreamProvider provider) async {
+    final id = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
         builder: (_) => ProviderEditorPage(provider: provider),
       ),
     );
+    if (id != null && mounted) setState(() {});
   }
 
-  Future<void> _delete(ProviderConfig provider) async {
+  Future<void> _remove(
+    GatewayController gateway,
+    ProviderAccount account,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      animationStyle: MagpieMotion.overlays(context),
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(context.tr('删除供应商？', 'Delete provider?')),
-          content: Text(
-            context.tr(
-              '将从当前演示会话中移除「${provider.localizedName(context.l10n)}」。这不会影响任何真实服务或配置。',
-              'Remove “${provider.localizedName(context.l10n)}” from this demo session. No real services or settings will be affected.',
-            ),
+      builder: (dialog) => AlertDialog(
+        title: Text(context.tr('移除账号？', 'Remove account?')),
+        content: Text(
+          context.tr(
+            '此操作会一并清除保存在系统凭据存储中的对应密钥。',
+            'This also removes the associated key from system credential storage.',
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(context.tr('取消', 'Cancel')),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: context.magpie.coral,
-              ),
-              child: Text(context.tr('删除', 'Delete')),
-            ),
-          ],
-        );
-      },
-    );
-    if (confirmed != true || !mounted) {
-      return;
-    }
-    final store = MagpieScope.of(context);
-    store.removeProvider(provider.id);
-    showDemoToast(
-      context,
-      context.tr(
-        '已从演示会话中移除 ${provider.localizedName(context.l10n)}',
-        'Removed ${provider.localizedName(context.l10n)} from the demo session',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: Text(context.tr('取消', 'Cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: Text(context.tr('移除', 'Remove')),
+          ),
+        ],
       ),
     );
-    Navigator.of(context).pop();
+    if (confirmed == true && mounted) {
+      final ok = await gateway.removeAccount(widget.providerId, account.id);
+      if (mounted && !ok) _showIssue(gateway);
+    }
+  }
+
+  void _showIssue(GatewayController gateway) {
+    final issue = gateway.issue ?? GatewayIssue.saveFailed;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.l10n.gatewayIssue(issue))));
   }
 
   @override
   Widget build(BuildContext context) {
-    final store = MagpieScope.of(context);
-    final provider = _providerFrom(store);
-
+    final gateway = GatewayScope.of(context);
+    final provider = gateway.provider(widget.providerId);
+    final canEdit = gateway.canConfigure;
     return AppCanvas(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -101,275 +97,158 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
                       PageTopBar(
                         title: context.tr('供应商详情', 'Provider details'),
                         onBack: () => Navigator.of(context).pop(),
+                        backIcon: MagpieGlyph.back,
                       ),
                       Expanded(
                         child: EmptyState(
-                          icon: Icons.cloud_off_outlined,
+                          iconWidget: const MagpieIcon(MagpieGlyph.provider),
                           title: context.tr(
                             '供应商已不存在',
                             'Provider no longer exists',
                           ),
                           body: context.tr(
-                            '它可能已被删除。返回列表查看其他演示配置。',
-                            'It may have been deleted. Return to the list to view other demo configurations.',
+                            '返回列表查看其他供应商。',
+                            'Return to the list to view other providers.',
                           ),
                         ),
                       ),
                     ],
                   ),
                 )
-              : SingleChildScrollView(
+              : ListView(
                   padding: pagePadding,
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 720),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PageTopBar(
+                      title: provider.name,
+                      onBack: () => Navigator.of(context).pop(),
+                      backIcon: MagpieGlyph.back,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          PageTopBar(
-                            title: context.tr('供应商详情', 'Provider details'),
-                            onBack: () => Navigator.of(context).pop(),
-                            trailing: RoundIconButton(
-                              icon: Icons.delete_outline_rounded,
-                              tooltip: context.tr('删除供应商', 'Delete provider'),
-                              onPressed: () => _delete(provider),
-                              size: 42,
-                            ),
+                          IconButton(
+                            tooltip: context.tr('编辑名称', 'Edit name'),
+                            onPressed: canEdit
+                                ? () => _editName(provider)
+                                : null,
+                            icon: const MagpieIcon(MagpieGlyph.pencil),
                           ),
-                          const SizedBox(height: 18),
-                          _ProviderHero(provider: provider),
-                          const SizedBox(height: 12),
-                          InfoBanner(
-                            icon: Icons.science_outlined,
-                            title: context.tr('演示配置', 'Demo configuration'),
-                            body: context.tr(
-                              '端点、密钥引用与延迟均为静态示例。此页面不会发起网络请求，也不会读取真实环境变量。',
-                              'Endpoints, key references, and latency are static examples. This page makes no network requests and does not read real environment variables.',
-                            ),
-                            tint: context.magpie.amberSoft,
-                            accent: context.magpie.amber,
-                          ),
-                          const SizedBox(height: 20),
-                          _ProviderMetrics(provider: provider),
-                          const SizedBox(height: 22),
-                          SectionHeader(
-                            title: context.tr('可用模型', 'Available models'),
-                            subtitle: context.tr(
-                              '用于界面展示的示例模型标识',
-                              'Example model identifiers for display',
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          SurfaceCard(
-                            child: Wrap(
-                              spacing: 7,
-                              runSpacing: 7,
-                              children: [
-                                for (final model in provider.models)
-                                  TagChip(
-                                    label: model,
-                                    icon: Icons.memory_rounded,
-                                    color: context.magpie.inkSoft,
-                                    background: context.magpie.canvas,
-                                    borderColor: context.magpie.line,
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 22),
-                          SectionHeader(
-                            title: context.tr('连接配置', 'Connection settings'),
-                          ),
-                          const SizedBox(height: 10),
-                          SurfaceCard(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 17,
-                              vertical: 4,
-                            ),
-                            child: Column(
-                              children: [
-                                KeyValueRow(
-                                  label: context.tr('接入地址', 'Endpoint'),
-                                  value: provider.endpoint,
-                                  monospace: true,
-                                ),
-                                const SoftDivider(),
-                                KeyValueRow(
-                                  label: context.tr('密钥引用', 'Key reference'),
-                                  value: context.l10n.reference(
-                                    provider.keyReference,
-                                  ),
-                                  monospace: true,
-                                ),
-                                const SoftDivider(),
-                                KeyValueRow(
-                                  label: context.tr('认证方式', 'Authentication'),
-                                  value: context.tr(
-                                    'Bearer · 演示占位',
-                                    'Bearer · demo placeholder',
-                                  ),
-                                ),
-                                const SoftDivider(),
-                                KeyValueRow(
-                                  label: context.tr('协议类型', 'Protocol type'),
-                                  value: context.l10n.providerKind(
-                                    provider.kind,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 22),
-                          SectionHeader(
-                            title: context.tr('路由策略', 'Routing policy'),
-                            subtitle: context.tr(
-                              '仅修改当前会话中的界面状态',
-                              'Changes only the current session’s UI state',
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          SurfaceCard(
-                            padding: const EdgeInsets.fromLTRB(16, 6, 10, 6),
-                            child: Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            context.tr('默认路由', 'Default route'),
-                                            style: TextStyle(
-                                              color: context.magpie.ink,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 3),
-                                          Text(
-                                            provider.isDefaultRoute
-                                                ? context.tr(
-                                                    '新会话优先使用此供应商',
-                                                    'New sessions prefer this provider',
-                                                  )
-                                                : context.tr(
-                                                    '当前未作为默认路由',
-                                                    'Not currently the default route',
-                                                  ),
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.copyWith(fontSize: 10.5),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Switch(
-                                      key: const ValueKey(
-                                        'default-provider-switch',
-                                      ),
-                                      value: provider.isDefaultRoute,
-                                      onChanged: (value) {
-                                        store.setDefaultProvider(
-                                          provider.id,
-                                          value,
-                                        );
-                                        showDemoToast(
-                                          context,
-                                          value
-                                              ? context.tr(
-                                                  '已将 ${provider.localizedName(context.l10n)} 设为演示默认路由',
-                                                  'Set ${provider.localizedName(context.l10n)} as the demo default route',
-                                                )
-                                              : context.tr(
-                                                  '已取消演示默认路由',
-                                                  'Demo default route cleared',
-                                                ),
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ),
-                                const SoftDivider(),
-                                KeyValueRow(
-                                  label: context.tr('回退策略', 'Fallback policy'),
-                                  value: provider.kind == ProviderKind.ollama
-                                      ? context.tr('不启用', 'Disabled')
-                                      : context.tr(
-                                          '下一个在线供应商',
-                                          'Next available provider',
-                                        ),
-                                ),
-                                const SoftDivider(),
-                                KeyValueRow(
-                                  label: context.tr('失败重试', 'Retries'),
-                                  value: context.tr(
-                                    '2 次 · 指数退避（示意）',
-                                    '2 · exponential backoff (example)',
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () => _edit(provider),
-                                  icon: const Icon(
-                                    Icons.edit_outlined,
-                                    size: 17,
-                                  ),
-                                  label: Text(
-                                    context.tr('编辑配置', 'Edit settings'),
-                                  ),
-                                  style: OutlinedButton.styleFrom(
-                                    minimumSize: const Size(0, 50),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 9),
-                              Expanded(
-                                child: FilledButton.icon(
-                                  onPressed: () => showConnectionTestSheet(
-                                    context,
-                                    provider,
-                                  ),
-                                  icon: const Icon(
-                                    Icons.speed_rounded,
-                                    size: 18,
-                                  ),
-                                  label: Text(
-                                    context.tr('测试连接', 'Test connection'),
-                                  ),
-                                  style: FilledButton.styleFrom(
-                                    minimumSize: const Size(0, 50),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Center(
-                            child: TextButton.icon(
-                              onPressed: () => showSandboxSheet(context),
-                              icon: const Icon(Icons.shield_outlined, size: 15),
-                              label: Text(
-                                context.tr(
-                                  '查看凭据与沙箱边界',
-                                  'View credential and sandbox boundaries',
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    MagpieList(
+                      children: [
+                        MagpieRow(
+                          title: context.tr('供应商状态', 'Provider status'),
+                          subtitle: context.tr(
+                            '${provider.accounts.length} 个账号 · ${provider.hosts.length} 个端点域名',
+                            '${provider.accounts.length} accounts · ${provider.hosts.length} endpoint hosts',
+                          ),
+                          leading: ProviderIcon(
+                            hosts: provider.hosts,
+                            color: provider.enabled
+                                ? context.tokens.accent
+                                : context.tokens.muted,
+                          ),
+                          trailing: Switch.adaptive(
+                            key: const ValueKey('provider-enabled-switch'),
+                            value: provider.enabled,
+                            onChanged: canEdit
+                                ? (value) async {
+                                    final ok = await gateway
+                                        .setProvidersEnabled({
+                                          provider.id,
+                                        }, value);
+                                    if (mounted && !ok) _showIssue(gateway);
+                                  }
+                                : null,
+                          ),
+                          dense: false,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    SectionHeader(
+                      title: context.tr('账号与协议', 'Accounts & protocols'),
+                      subtitle: context.tr(
+                        '每个账号配置一个受支持的协议；网关逐协议使用已选账号，不执行跨协议转换。',
+                        'Each account configures one supported protocol. The gateway uses the selected account per protocol and does not translate between protocols.',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (provider.accounts.isEmpty)
+                      MagpieList(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                              context.tr(
+                                '尚无账号。添加账号以配置协议、上游端点和模型。',
+                                'No accounts yet. Add one to configure a protocol, upstream endpoint and models.',
+                              ),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      MagpieList(
+                        children: [
+                          for (
+                            var i = 0;
+                            i < provider.accounts.length;
+                            i++
+                          ) ...[
+                            if (i > 0) const SoftDivider(),
+                            _AccountRow(
+                              account: provider.accounts[i],
+                              hideName: widget.hideAccounts,
+                              selected:
+                                  gateway.selectedAccountId(
+                                    provider.accounts[i].protocol,
+                                  ) ==
+                                  provider.accounts[i].id,
+                              hasKey: gateway.hasAccountKey(
+                                provider.accounts[i],
+                              ),
+                              failedKey: gateway.accountKeyFailed(
+                                provider.accounts[i],
+                              ),
+                              onTap: () => _open(
+                                ProviderAccountEditor(
+                                  providerId: provider.id,
+                                  account: provider.accounts[i],
+                                ),
+                              ),
+                              onRemove: canEdit
+                                  ? () => _remove(gateway, provider.accounts[i])
+                                  : null,
+                            ),
+                          ],
+                        ],
+                      ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      key: const ValueKey('provider-add-account'),
+                      onPressed: canEdit
+                          ? () => _open(
+                              ProviderAccountEditor(providerId: provider.id),
+                            )
+                          : null,
+                      icon: const MagpieIcon(MagpieGlyph.plus, size: 18),
+                      label: Text(context.tr('添加账号', 'Add account')),
+                    ),
+                    if (!canEdit && !gateway.loading) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        context.tr(
+                          '停止本机网关后可编辑供应商和账号。',
+                          'Stop the local gateway to edit providers and accounts.',
+                        ),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
                 ),
         ),
       ),
@@ -377,159 +256,69 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
   }
 }
 
-class _ProviderHero extends StatelessWidget {
-  const _ProviderHero({required this.provider});
+class _AccountRow extends StatelessWidget {
+  const _AccountRow({
+    required this.account,
+    required this.hideName,
+    required this.selected,
+    required this.hasKey,
+    required this.failedKey,
+    required this.onTap,
+    required this.onRemove,
+  });
 
-  final ProviderConfig provider;
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = providerAccent(context, provider.kind);
-    final soft = providerSoft(context, provider.kind);
-
-    return SurfaceCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Hero(
-                tag: 'provider-icon-${provider.id}',
-                child: Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    color: soft,
-                    borderRadius: BorderRadius.circular(19),
-                    border: Border.all(color: accent.withValues(alpha: 0.12)),
-                  ),
-                  child: Icon(
-                    providerIcon(provider.kind),
-                    size: 26,
-                    color: accent,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            provider.localizedName(context.l10n),
-                            style: Theme.of(
-                              context,
-                            ).textTheme.headlineMedium?.copyWith(fontSize: 22),
-                          ),
-                        ),
-                        StatusPill(
-                          label: context.l10n.providerHealth(provider.health),
-                          color: healthColor(context, provider.health),
-                          background: healthBackground(
-                            context,
-                            provider.health,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      context.l10n.providerKind(provider.kind),
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(fontSize: 11.5),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: context.magpie.canvas,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: context.magpie.line),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.link_rounded, size: 14, color: context.magpie.faint),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: Text(
-                    provider.endpoint,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: context.magpie.muted,
-                      fontSize: 11,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 11),
-          Text(
-            provider.localizedNote(context.l10n),
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(fontSize: 11, height: 1.5),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProviderMetrics extends StatelessWidget {
-  const _ProviderMetrics({required this.provider});
-
-  final ProviderConfig provider;
+  final ProviderAccount account;
+  final bool hideName;
+  final bool selected;
+  final bool hasKey;
+  final bool failedKey;
+  final VoidCallback onTap;
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
-    return SurfaceCard(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6),
-      child: Row(
+    final state = !account.requiresKey
+        ? context.tr('无需密钥', 'No key required')
+        : failedKey
+        ? context.tr('密钥读取失败', 'Key unavailable')
+        : hasKey
+        ? context.tr('密钥已载入', 'Key loaded')
+        : account.credentialId != null
+        ? context.tr('需要重新输入密钥', 'Key needs re-entry')
+        : context.tr('未设置密钥', 'No key set');
+    return MagpieRow(
+      key: ValueKey('gateway-account-${account.id}'),
+      title: hideName ? context.tr('账号已隐藏', 'Account hidden') : account.name,
+      subtitle:
+          '${account.protocol.label}  ·  ${account.endpoint.host}  ·  ${account.models.length} ${context.tr('个模型', 'models')}  ·  $state',
+      leading: ProviderIcon(
+        hosts: [account.endpoint.host],
+        size: 18,
+        color: selected ? context.tokens.accent : context.tokens.muted,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: MetricBlock(
-              value: provider.latencyMs == null
-                  ? '—'
-                  : '${provider.latencyMs} ms',
-              label: context.tr('演示延迟', 'Demo latency'),
-              align: CrossAxisAlignment.center,
+          if (selected)
+            MagpieBadge(
+              label: context.tr('网关使用中', 'Selected'),
+              tone: MagpieBadgeTone.accent,
             ),
+          IconButton(
+            tooltip: context.tr('移除账号', 'Remove account'),
+            onPressed: onRemove,
+            icon: const Icon(Icons.remove_circle_outline_rounded, size: 19),
           ),
-          Container(width: 1, height: 32, color: context.magpie.line),
-          Expanded(
-            child: MetricBlock(
-              value: '${provider.models.length}',
-              label: context.tr('可用模型', 'Available models'),
-              align: CrossAxisAlignment.center,
-            ),
-          ),
-          Container(width: 1, height: 32, color: context.magpie.line),
-          Expanded(
-            child: MetricBlock(
-              value: provider.isDefaultRoute
-                  ? context.tr('主路由', 'Primary')
-                  : context.tr('备用', 'Fallback'),
-              label: context.tr('路由角色', 'Route role'),
-              align: CrossAxisAlignment.center,
-            ),
+          MagpieIcon(
+            MagpieGlyph.chevronRight,
+            color: context.tokens.faint,
+            size: 19,
+            matchTextDirection: true,
           ),
         ],
       ),
+      onTap: onTap,
+      dense: false,
     );
   }
 }

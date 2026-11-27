@@ -1,7 +1,23 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import '../gateway/gateway_controller.dart';
 import '../models/magpie_models.dart';
+
+/// The order is shared by the top bar, sidebar, and page stack.
+enum MagpieSection {
+  agents,
+  sessions,
+  resources,
+  artifacts,
+  providers,
+  routing,
+  routingGroups,
+  gateway,
+  usage,
+  redaction,
+  plugins,
+}
 
 /// App chrome follows the same locale as Material and Cupertino controls.
 class MagpieL10n {
@@ -17,6 +33,115 @@ class MagpieL10n {
   bool get isEnglish => locale.languageCode == 'en';
 
   String text(String zh, String en) => isEnglish ? en : zh;
+
+  String navigationLabel(MagpieSection section) => switch (section) {
+    MagpieSection.agents => 'Agent',
+    MagpieSection.sessions => text('会话', 'Sessions'),
+    MagpieSection.resources => text('资源库', 'Library'),
+    MagpieSection.artifacts => 'Artifacts',
+    MagpieSection.providers => text('供应商', 'Providers'),
+    MagpieSection.routing => text('路由', 'Routing'),
+    MagpieSection.routingGroups => text('路由组', 'Routing groups'),
+    MagpieSection.gateway => text('网关', 'Gateway'),
+    MagpieSection.usage => text('用量', 'Usage'),
+    MagpieSection.redaction => text('脱敏', 'Redaction'),
+    MagpieSection.plugins => text('插件', 'Plugins'),
+  };
+
+  String get navigationTitle => text('栏目', 'Sections');
+  String get showSidebar => text('显示侧栏', 'Show sidebar');
+  String get hideSidebar => text('收起侧栏', 'Hide sidebar');
+  String get closeSidebar => text('关闭侧栏', 'Close sidebar');
+  String get settingsTool => text('设置', 'Settings');
+  String get notImplemented => text('尚未实现', 'Not implemented yet');
+  String get gatewayListener => text('本机监听器', 'Local listener');
+  String get gatewayDescription => text(
+    '查看并控制当前应用进程中的本机监听器。状态来自实际网关控制器。',
+    'View and control the local listener in this app process. Status comes from the live gateway controller.',
+  );
+
+  String gatewayIssue(GatewayIssue issue) => switch (issue) {
+    GatewayIssue.invalidUpstream => text(
+      '填写符合协议的 HTTPS 端点，或其他端口上的 HTTP 127.0.0.1。移除 URL 中的凭据、查询参数和片段。',
+      'Use a matching HTTPS endpoint, or HTTP 127.0.0.1 on another port. Remove URL credentials, queries and fragments.',
+    ),
+    GatewayIssue.invalidApiKey => text(
+      '密钥格式无效，或配置字段含有密钥。',
+      'The key is invalid or appears in a configuration field.',
+    ),
+    GatewayIssue.invalidProvider => text(
+      '请检查名称、端点或模型清单的格式与长度。',
+      'Check the format and length of names, endpoints and model IDs.',
+    ),
+    GatewayIssue.invalidImport => text(
+      '导入失败。请选择无凭据的 Magpie 移动端供应商 JSON（版本 1）。',
+      'Import failed. Select a Magpie Mobile provider JSON file (version 1) without credentials.',
+    ),
+    GatewayIssue.catalogLoadFailed => text(
+      '供应商配置读取失败。原始配置已保留，修改已暂停。',
+      'The provider catalog could not be read. The original is preserved and editing is paused.',
+    ),
+    GatewayIssue.migrationFailed => text(
+      '旧上游迁移失败。原始配置已保留，修改已暂停。仍可使用已读取的旧路由。',
+      'Legacy migration failed. The original settings are preserved and editing is paused. Readable legacy routes remain available.',
+    ),
+    GatewayIssue.credentialFailed => text(
+      '系统凭据存储写入失败。请重试。',
+      'Could not write to system credential storage. Try again.',
+    ),
+    GatewayIssue.saveFailed => text(
+      '保存供应商配置失败。请重试。',
+      'Could not save the provider settings. Try again.',
+    ),
+    GatewayIssue.missingUpstream => text(
+      '请先为启用的供应商选择网关账号。',
+      'Select a gateway account from an enabled provider first.',
+    ),
+    GatewayIssue.portInUse => text(
+      '端口 3425 已被占用。',
+      'Port 3425 is already in use.',
+    ),
+    GatewayIssue.startFailed => text(
+      '监听 127.0.0.1:3425 失败。',
+      'Could not listen on 127.0.0.1:3425.',
+    ),
+    GatewayIssue.listenerEnded => text(
+      '本机监听已意外结束。',
+      'The local listener ended unexpectedly.',
+    ),
+  };
+
+  String? sectionUnavailable(MagpieSection section) => switch (section) {
+    MagpieSection.sessions => text(
+      '移动端尚未接入 Agent 会话或会话历史。',
+      'Agent sessions and their history are not available on mobile yet.',
+    ),
+    MagpieSection.routing => text(
+      '规则路由尚未实现。可在「供应商」为每种协议选择一个网关账号。',
+      'Routing rules are not implemented yet. Select a gateway account for each protocol in Providers.',
+    ),
+    MagpieSection.artifacts => text(
+      '移动端尚未接入 Artifacts 查看与运行。',
+      'Artifact browsing and execution are not available on mobile yet.',
+    ),
+    MagpieSection.routingGroups => text(
+      '路由组管理尚未接入移动端。',
+      'Routing group management is not available on mobile yet.',
+    ),
+    MagpieSection.usage => text(
+      '当前网关不收集或展示用量统计。',
+      'The current gateway does not collect or display usage statistics.',
+    ),
+    MagpieSection.redaction => text(
+      '本机网关尚未实现请求脱敏。',
+      'Request redaction is not implemented in the local gateway yet.',
+    ),
+    MagpieSection.plugins => text(
+      '移动端尚未接入插件安装或运行。',
+      'Plugin installation and execution are not available on mobile yet.',
+    ),
+    _ => null,
+  };
 
   String providerKind(ProviderKind kind) => text(kind.label, switch (kind) {
     ProviderKind.anthropic => kind.label,

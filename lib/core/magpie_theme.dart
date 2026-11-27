@@ -15,37 +15,38 @@ class MagpiePalette {
 
   Color _pair(int light, int dark) => Color(isDark ? dark : light);
 
-  Color get canvas => _pair(0xFFF3F5F4, 0xFF101412);
-  Color get canvasDeep => _pair(0xFFE7EDE9, 0xFF28312C);
-  Color get paper => _pair(0xFFFCFDFC, 0xFF19211D);
-  Color get elevated => _pair(0xFFFEFFFE, 0xFF232D27);
-  Color get gatewaySurface => _pair(0xFFE7F2EC, 0xFF20322A);
-  Color get ink => _pair(0xFF14201A, 0xFFF1F7F3);
-  Color get inkSoft => _pair(0xFF30463B, 0xFFD6E5DB);
-  Color get muted => _pair(0xFF4E6257, 0xFFB0C1B6);
-  Color get faint => highContrast ? inkSoft : _pair(0xFF596D62, 0xFFA3B6AA);
-  Color get line => highContrast ? lineStrong : _pair(0xFFDCE6E0, 0xFF35443B);
+  // Upstream CSS tokens at yetone/magpie commit 6346f383.
+  Color get canvas => _pair(0xFFF4F4F6, 0xFF1A1A1E);
+  Color get canvasDeep => _pair(0xFFF1F1F4, 0xFF2D2D33);
+  Color get paper => _pair(0xFFFFFFFF, 0xFF232327);
+  Color get elevated => _pair(0xFFF9F9FB, 0xFF1F1F23);
+  Color get gatewaySurface => _pair(0xFFEEEDFD, 0xFF2B2C47);
+  Color get ink => _pair(0xFF1C1C21, 0xFFEDEDF1);
+  Color get inkSoft => _pair(0xFF4B4B53, 0xFFB9B9C1);
+  Color get muted => _pair(0xFF85858D, 0xFF9C9CA6);
+  Color get faint => highContrast ? inkSoft : _pair(0xFFB9B9C2, 0xFF90909A);
+  Color get line => highContrast ? lineStrong : _pair(0xFFE3E3E8, 0xFF333339);
   Color get lineStrong => highContrast
-      ? _pair(0xFF677E70, 0xFF889F91)
-      : _pair(0xFFBECDC4, 0xFF54665B);
-  Color get jade => _pair(0xFF0E725C, 0xFF82D8BB);
-  Color get onJade => _pair(0xFFFFFFFF, 0xFF122D25);
-  Color get jadeDeep => _pair(0xFF084C3E, 0xFFA8E7D2);
-  Color get mint => _pair(0xFFD3EDE1, 0xFF214238);
-  Color get mintSoft => _pair(0xFFEAF7F0, 0xFF20332D);
-  Color get cobalt => _pair(0xFF3359B2, 0xFFADC4FF);
-  Color get cobaltSoft => _pair(0xFFEAF0FC, 0xFF253249);
-  Color get amber => _pair(0xFF855610, 0xFFF6C875);
-  Color get amberSoft => _pair(0xFFFFF3DB, 0xFF3A3020);
-  Color get coral => _pair(0xFFA53D31, 0xFFFFAA9E);
-  Color get coralSoft => _pair(0xFFFBEAE5, 0xFF412C2A);
-  Color get violet => _pair(0xFF6B4DA8, 0xFFCDB6FA);
+      ? _pair(0xFF63636B, 0xFFA1A1AA)
+      : _pair(0xFFE3E3E8, 0xFF333339);
+  Color get jade => _pair(0xFF4F46E5, 0xFFA5B4FC);
+  Color get onJade => _pair(0xFFFFFFFF, 0xFF14142A);
+  Color get jadeDeep => _pair(0xFF4F46E5, 0xFFA5B4FC);
+  Color get mint => _pair(0xFFEEEDFD, 0xFF2B2C47);
+  Color get mintSoft => _pair(0xFFECEBFB, 0xFF33345A);
+  Color get cobalt => _pair(0xFF0EA5E9, 0xFF7DD3FC);
+  Color get cobaltSoft => _pair(0xFFE0F2FE, 0xFF24364A);
+  Color get amber => _pair(0xFFB45309, 0xFFF2B544);
+  Color get amberSoft => _pair(0xFFFBF0DF, 0xFF3F3220);
+  Color get coral => _pair(0xFFD64545, 0xFFF28B82);
+  Color get coralSoft => _pair(0xFFFBE9E9, 0xFF45272A);
+  Color get violet => _pair(0xFF8B5CF6, 0xFFC4B5FD);
   Color get violetSoft => _pair(0xFFF1EBFA, 0xFF352B46);
-  Color get clay => _pair(0xFF955020, 0xFFF1B488);
-  Color get claySoft => _pair(0xFFF7E9DD, 0xFF3B2D25);
-  Color get shadow => _pair(0xFF173A34, 0xFF000000);
-  Color get brandPlate => const Color(0xFFFCFDFC);
-  Color get modalScrim => _pair(0x55101B15, 0x99080C0A);
+  Color get clay => _pair(0xFFEC4899, 0xFFF9A8D4);
+  Color get claySoft => _pair(0xFFFCE7F3, 0xFF3B2635);
+  Color get shadow => _pair(0xFF14161E, 0xFF000000);
+  Color get brandPlate => const Color(0xFFFFFFFF);
+  Color get modalScrim => _pair(0x6614141E, 0x99000000);
 
   Color interactionOverlay(Set<WidgetState> states, {Color? ink}) {
     if (states.contains(WidgetState.disabled)) return Colors.transparent;
@@ -64,12 +65,12 @@ class MagpiePalette {
 }
 
 abstract final class MagpieShape {
-  static const field = 14.0;
-  static const control = 16.0;
-  static const card = 22.0;
-  static const panel = 28.0;
-  static const dock = 32.0;
-  static const sheet = 32.0;
+  static const field = 6.0;
+  static const control = 7.0;
+  static const card = 12.0;
+  static const panel = 10.0;
+  static const dock = 12.0;
+  static const sheet = 12.0;
 }
 
 extension MagpieThemeContext on BuildContext {
@@ -109,47 +110,47 @@ abstract final class MagpieTheme {
     final textTheme = TextTheme(
       displayLarge: TextStyle(
         color: colors.ink,
-        fontSize: 36,
+        fontSize: 20,
         fontWeight: FontWeight.w700,
         height: 1.18,
         letterSpacing: -0.7,
       ),
       displayMedium: TextStyle(
         color: colors.ink,
-        fontSize: 32,
+        fontSize: 18,
         fontWeight: FontWeight.w700,
         height: 1.2,
         letterSpacing: -0.65,
       ),
       headlineLarge: TextStyle(
         color: colors.ink,
-        fontSize: 28,
+        fontSize: 17,
         fontWeight: FontWeight.w700,
         height: 1.2,
         letterSpacing: -0.5,
       ),
       headlineMedium: TextStyle(
         color: colors.ink,
-        fontSize: 23,
+        fontSize: 14,
         fontWeight: FontWeight.w700,
         height: 1.24,
         letterSpacing: -0.3,
       ),
       titleLarge: TextStyle(
         color: colors.ink,
-        fontSize: 19,
+        fontSize: 15,
         fontWeight: FontWeight.w700,
         height: 1.3,
       ),
       titleMedium: TextStyle(
         color: colors.ink,
-        fontSize: 16,
+        fontSize: 13,
         fontWeight: FontWeight.w600,
         height: 1.35,
       ),
-      bodyLarge: TextStyle(color: colors.inkSoft, fontSize: 16, height: 1.55),
-      bodyMedium: TextStyle(color: colors.muted, fontSize: 15, height: 1.55),
-      bodySmall: TextStyle(color: colors.muted, fontSize: 13, height: 1.5),
+      bodyLarge: TextStyle(color: colors.inkSoft, fontSize: 14, height: 1.45),
+      bodyMedium: TextStyle(color: colors.muted, fontSize: 13, height: 1.45),
+      bodySmall: TextStyle(color: colors.muted, fontSize: 11.5, height: 1.4),
       labelLarge: TextStyle(
         color: colors.ink,
         fontSize: 13,
@@ -206,11 +207,7 @@ abstract final class MagpieTheme {
         labelStyle: TextStyle(color: colors.muted, fontSize: 15),
         floatingLabelStyle: TextStyle(color: colors.muted, fontSize: 13),
         hintStyle: TextStyle(color: colors.faint, fontSize: 15),
-        helperStyle: TextStyle(
-          color: colors.muted,
-          fontSize: 13,
-          height: 1.45,
-        ),
+        helperStyle: TextStyle(color: colors.muted, fontSize: 13, height: 1.45),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(MagpieShape.field),
           borderSide: BorderSide(color: colors.line),

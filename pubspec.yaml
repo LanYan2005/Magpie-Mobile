@@ -7,10 +7,13 @@ environment:
   sdk: ^3.10.0
 
 dependencies:
+  file_selector: 1.0.3
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  flutter_secure_storage: 9.2.4
+  flutter_svg: 2.3.0
   shared_preferences: ^2.5.4
 
 dev_dependencies:
@@ -22,3 +25,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/brand/magpie.png
+    - assets/upstream/ui/
+    - assets/upstream/vendors/

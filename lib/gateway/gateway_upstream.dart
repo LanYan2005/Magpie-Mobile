@@ -10,6 +10,77 @@ enum GatewayProtocol {
   final String label;
   final String inboundPath;
 
+  List<String> get _operationSegments => switch (this) {
+    chat => const ['chat', 'completions'],
+    responses => const ['responses'],
+    anthropic => const ['messages'],
+    gemini => const [],
+    systemOne => const ['systemone'],
+  };
+
+  /// Resolves the editor's single API root to the existing stored route format.
+  /// The root includes any vendor/relay prefix and version (e.g. /api/v1).
+  Uri? endpointFromBaseUrl(String value) {
+    final base = GatewayUpstream.parseEndpoint(value);
+    if (base == null || base.pathSegments.any(_unsafeSegment)) return null;
+    final segments = _pathSegments(base);
+    if (segments.any((segment) => segment.contains('/')) ||
+        const [
+          'responses',
+          'messages',
+          'systemone',
+          'models',
+        ].contains(segments.lastOrNull) ||
+        (segments.length >= 2 &&
+            segments[segments.length - 2] == 'chat' &&
+            segments.last == 'completions')) {
+      return null;
+    }
+    // Anthropic takes a server root (optionally with a relay prefix) as
+    // well as an already-versioned API root. Append the operation only once.
+    if (this == anthropic &&
+        !_versionedPath.hasMatch(segments.lastOrNull ?? '')) {
+      segments.add('v1');
+    } else if (segments.isEmpty) {
+      switch (this) {
+        case chat:
+        case responses:
+          segments.add('v1');
+        case gemini:
+          segments.add('v1beta');
+        case anthropic:
+        case systemOne:
+          break;
+      }
+    }
+    final endpoint = base.replace(
+      pathSegments: [...segments, ..._operationSegments],
+    );
+    return acceptsEndpoint(endpoint) ? endpoint : null;
+  }
+
+  /// Display a previously saved route as a base URL without a data migration.
+  Uri baseUrlFromEndpoint(Uri endpoint) {
+    final segments = _pathSegments(endpoint);
+    final baseSegments = segments
+        .take(segments.length - _operationSegments.length)
+        .toList();
+    if (this == anthropic && baseSegments.lastOrNull == 'v1') {
+      baseSegments.removeLast();
+    }
+    return endpoint.replace(pathSegments: baseSegments);
+  }
+
+  static List<String> _pathSegments(Uri uri) {
+    final segments = uri.pathSegments.toList();
+    while (segments.isNotEmpty && segments.last.isEmpty) {
+      segments.removeLast();
+    }
+    return segments;
+  }
+
+  static final _versionedPath = RegExp(r'^v[0-9]+(?:(?:alpha|beta)[0-9]*)?$');
+
   /// A versioned API root for Gemini; a complete operation path otherwise.
   bool acceptsEndpoint(Uri uri) {
     final path = uri.path.replaceFirst(RegExp(r'/+$'), '');

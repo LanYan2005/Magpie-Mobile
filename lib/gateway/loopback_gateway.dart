@@ -15,9 +15,7 @@ class LoopbackGateway {
   static const _ioTimeout = Duration(seconds: 60);
   static const _bodyTimeout = Duration(seconds: 15);
   static final _anthropicVersion = RegExp(r'^\d{4}-\d{2}-\d{2}$');
-  static final _anthropicBeta = RegExp(
-    r'^[a-z0-9-]+(?: *, *[a-z0-9-]+)*$',
-  );
+  static final _anthropicBeta = RegExp(r'^[a-z0-9-]+(?: *, *[a-z0-9-]+)*$');
 
   final HttpServer _server;
   final Map<GatewayProtocol, GatewayUpstream> _routes;

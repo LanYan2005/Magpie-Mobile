@@ -2,681 +2,637 @@ import 'package:flutter/material.dart';
 
 import '../core/magpie_l10n.dart';
 import '../core/magpie_motion.dart';
-import '../core/magpie_theme.dart';
+import '../core/magpie_tokens.dart';
+import '../gateway/gateway_controller.dart';
+import '../gateway/gateway_scope.dart';
 import '../state/app_language.dart';
 import '../state/magpie_store.dart';
-import '../widgets/app_canvas.dart';
 import '../widgets/primitives.dart';
 import '../widgets/sheets.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
-  Future<void> _resetDemoData(BuildContext context) async {
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  int _part = 0;
+
+  Future<void> _resetDemoData() async {
     final confirmed = await showDialog<bool>(
       context: context,
       animationStyle: MagpieMotion.overlays(context),
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(dialogContext.tr('重置演示数据？', 'Reset demo data?')),
-          content: Text(
-            dialogContext.tr(
-              '会恢复 Agent、Skill、MCP 和内部供应商示例的初始数据，不影响网关上游配置。',
-              'This restores the initial Agent, Skill, MCP, and internal provider examples. Gateway upstream settings are not affected.'
-            ),
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.tr('重置演示数据？', 'Reset demo data?')),
+        content: Text(
+          dialogContext.tr(
+            '会恢复 Agent、Skill、MCP 和内部供应商示例的初始数据，不影响网关上游配置。',
+            'This restores the initial Agent, Skill, MCP, and internal provider examples. Gateway upstream settings are not affected.',
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(dialogContext.tr('取消', 'Cancel')),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: Text(dialogContext.tr('重置', 'Reset')),
-            ),
-          ],
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(dialogContext.tr('取消', 'Cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(dialogContext.tr('重置', 'Reset')),
+          ),
+        ],
+      ),
     );
-    if (confirmed != true || !context.mounted) return;
+    if (confirmed != true || !mounted) return;
     MagpieScope.of(context).resetDemoData();
     showDemoToast(context, context.tr('演示数据已恢复为初始示例', 'Demo data restored.'));
   }
 
   @override
   Widget build(BuildContext context) {
-    final store = MagpieScope.of(context);
     final t = context.tr;
-    return AppCanvas(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: SafeArea(
-          child: SingleChildScrollView(
-            padding: pagePadding,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    PageTopBar(
-                      title: t('设置', 'Settings'),
-                      onBack: () => Navigator.of(context).pop(),
-                      trailing: DemoBadge(label: t('UI 原型', 'UI Prototype')),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      t('语言 / Language', 'Language / 语言'),
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
-                    const SizedBox(height: 8),
-                    _LanguageSelector(language: AppLanguageScope.of(context)),
-                    const SizedBox(height: 14),
-                    _PlatformHero(),
-                    const SizedBox(height: 14),
-                    InfoBanner(
-                      icon: Icons.phone_iphone_rounded,
-                      title: t(
-                        '平台适配尚未接入',
-                        'Platform integrations are not connected',
-                      ),
-                      body: t(
-                        '当前是 Android + iOS 共用的一套 Flutter 界面。系统返回手势、边到边布局、后台任务、文件选择与安全存储均未做平台实现。',
-                        'This shared Flutter interface runs on Android and iOS. Platform-specific back gestures, edge-to-edge layout, background tasks, file selection, and secure storage are not implemented.',
-                      ),
-                      tint: context.magpie.amberSoft,
-                      accent: context.magpie.amber,
-                    ),
-                    const SizedBox(height: 22),
-                    SectionHeader(
-                      title: t('原型状态', 'Prototype status'),
-                      subtitle: t(
-                        '所有值均来自本地演示',
-                        'All values come from local demo data',
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SurfaceCard(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 15,
-                        vertical: 4,
-                      ),
-                      child: Column(
-                        children: [
-                          _SettingRow(
-                            icon: Icons.cloud_off_outlined,
-                            title: t(
-                              'Magpie 服务连接',
-                              'Magpie service connection',
-                            ),
-                            subtitle: t(
-                              '原版 Go 核心、账号和远程配置尚未接入',
-                              'Upstream Go core, accounts and remote settings are not connected',
-                            ),
-                            trailing: _tag(
-                              context,
-                              t('未接入', 'Not connected'),
-                              context.magpie.muted,
-                            ),
-                          ),
-                          const SoftDivider(),
-                          _SettingRow(
-                            icon: Icons.storage_outlined,
-                            title: t('数据来源', 'Data source'),
-                            subtitle: t(
-                              '${store.providers.length} 供应商 · ${store.agents.length} Agent · ${store.skills.length} Skill · ${store.mcpServers.length} MCP',
-                              '${store.providers.length} providers · ${store.agents.length} Agents · ${store.skills.length} Skills · ${store.mcpServers.length} MCP',
-                            ),
-                            trailing: _tag(
-                              context,
-                              t('本地内存', 'Local memory'),
-                              context.magpie.jade,
-                              background: context.magpie.mintSoft,
-                            ),
-                          ),
-                          const SoftDivider(),
-                          _SettingRow(
-                            icon: Icons.wifi_off_rounded,
-                            title: t('网络请求', 'Network requests'),
-                            subtitle: t(
-                              '仅已启动的本机网关会按协议转发至该协议保存的上游',
-                              'Only the running local gateway forwards requests to the upstream saved for that protocol',
-                            ),
-                            trailing: _tag(
-                              context,
-                              t('按需', 'On demand'),
-                              context.magpie.jade,
-                              background: context.magpie.mintSoft,
-                            ),
-                          ),
-                          const SoftDivider(),
-                          _SettingRow(
-                            icon: Icons.lock_outline_rounded,
-                            title: t(
-                              '凭据与系统权限',
-                              'Credentials and system permissions',
-                            ),
-                            subtitle: t(
-                              '网关上游密钥仅保留在进程内存；不申请存储或终端权限',
-                              'Gateway upstream keys stay in process memory; no storage or terminal permission is requested',
-                            ),
-                            trailing: _tag(
-                              context,
-                              t('未请求', 'Not requested'),
-                              context.magpie.jade,
-                              background: context.magpie.mintSoft,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    SectionHeader(
-                      title: t('平台适配清单', 'Platform integration checklist'),
-                      subtitle: t(
-                        '真实交付前仍需补齐的能力',
-                        'Capabilities to complete before production',
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SurfaceCard(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 15,
-                        vertical: 4,
-                      ),
-                      child: Column(
-                        children: [
-                          _SettingRow(
-                            icon: Icons.android_rounded,
-                            title: t(
-                              'Android 边到边与返回手势',
-                              'Android edge-to-edge and back gestures',
-                            ),
-                            subtitle: t(
-                              '目前仅使用 SafeArea 与 Flutter 默认行为',
-                              'Currently uses SafeArea and Flutter defaults',
-                            ),
-                            trailing: _tag(
-                              context,
-                              t('未接入', 'Not connected'),
-                              context.magpie.amber,
-                              background: context.magpie.amberSoft,
-                            ),
-                          ),
-                          const SoftDivider(),
-                          _SettingRow(
-                            icon: Icons.phone_iphone_rounded,
-                            title: t(
-                              'iOS 安全区与导航手势',
-                              'iOS safe areas and navigation gestures',
-                            ),
-                            subtitle: t(
-                              '基础安全区已支持，深度适配未接入',
-                              'Basic safe areas are supported; deeper integration is pending',
-                            ),
-                            trailing: _tag(
-                              context,
-                              t('部分', 'Partial'),
-                              context.magpie.amber,
-                              background: context.magpie.amberSoft,
-                            ),
-                          ),
-                          const SoftDivider(),
-                          _SettingRow(
-                            icon: Icons.sync_outlined,
-                            title: t(
-                              '后台任务与本地端口',
-                              'Background tasks and local ports',
-                            ),
-                            subtitle: t(
-                              '不启动 Termux 桥接；stdio MCP 只保存配置',
-                              'No Termux bridge is started; stdio MCP settings are only saved',
-                            ),
-                            trailing: _tag(
-                              context,
-                              t('未接入', 'Not connected'),
-                              context.magpie.muted,
-                            ),
-                          ),
-                          const SoftDivider(),
-                          _SettingRow(
-                            icon: Icons.folder_open_outlined,
-                            title:
-                                'Skills / MCP ${t('管理与导出', 'management and export')}',
-                            subtitle: t(
-                              '仅管理配置与演示导出；不读写其他 App 私有目录',
-                              'Manages settings and demo exports only; does not access other apps’ private folders',
-                            ),
-                            trailing: _tag(
-                              context,
-                              t('演示', 'Demo'),
-                              context.magpie.amber,
-                              background: context.magpie.amberSoft,
-                            ),
-                          ),
-                          const SoftDivider(),
-                          _SettingRow(
-                            icon: Icons.vpn_key_outlined,
-                            title: 'Keychain / Keystore',
-                            subtitle: t(
-                              '真实凭据存储尚未实现',
-                              'Secure credential storage is not implemented',
-                            ),
-                            trailing: _tag(
-                              context,
-                              t('未接入', 'Not connected'),
-                              context.magpie.muted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    SectionHeader(
-                      title: t('安全与隐私', 'Security and privacy'),
-                      subtitle: t(
-                        '本原型刻意不请求高风险能力',
-                        'This prototype deliberately avoids sensitive capabilities',
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SurfaceCard(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 15,
-                        vertical: 4,
-                      ),
-                      child: Column(
-                        children: [
-                          _SettingRow(
-                            icon: Icons.key_off_outlined,
-                            title: t('零凭据', 'No credentials'),
-                            subtitle: t(
-                              '示例只使用 env: 变量名，不包含真实密钥',
-                              'Examples use env: variable names only; no real keys are included',
-                            ),
-                          ),
-                          const SoftDivider(),
-                          _SettingRow(
-                            icon: Icons.folder_off_outlined,
-                            title: t('零文件系统访问', 'No filesystem access'),
-                            subtitle: t(
-                              '不读取目录、不写入导出文件、不解析 Skill 包，不访问其他 App 的私有目录',
-                              'Does not read directories, write export files, parse Skill packages, or access other apps’ private folders',
-                            ),
-                          ),
-                          const SoftDivider(),
-                          _SettingRow(
-                            icon: Icons.shield_outlined,
-                            title: t(
-                              '查看 Termux 与 iOS 沙箱边界',
-                              'View Termux and iOS sandbox boundaries',
-                            ),
-                            subtitle: t(
-                              '真实接入前需要明确系统限制',
-                              'System constraints should be understood before integration',
-                            ),
-                            onTap: () => showSandboxSheet(context),
-                            trailing: Icon(
-                              Icons.chevron_right_rounded,
-                              size: 19,
-                              color: context.magpie.faint,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    SurfaceCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.restart_alt_rounded,
-                                size: 19,
-                                color: context.magpie.ink,
-                              ),
-                              const SizedBox(width: 9),
-                              Expanded(
-                                child: Text(
-                                  t('演示数据', 'Demo data'),
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(fontSize: 14),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            t(
-                              '新增内容仅存在于当前会话。重置不会访问磁盘或网络。',
-                              'New items exist only in this session. Reset does not access disk or network.',
-                            ),
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: () => _resetDemoData(context),
-                              icon: const Icon(
-                                Icons.restart_alt_rounded,
-                                size: 16,
-                              ),
-                              label: Text(t('重置演示数据', 'Reset demo data')),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 26),
-                    Center(
-                      child: Column(
-                        children: [
-                          const BrandLockup(compact: true),
-                          const SizedBox(height: 12),
-                          Text(
-                            t(
-                              'Magpie · UI 原型 0.1.0',
-                              'Magpie · UI Prototype 0.1.0',
-                            ),
-                            style: Theme.of(
-                              context,
-                            ).textTheme.bodySmall?.copyWith(fontSize: 10),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            t(
-                              'Flutter 3.38 · Android + iOS · 本地演示',
-                              'Flutter 3.38 · Android + iOS · Local demo',
-                            ),
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  fontSize: 9.5,
-                                  color: context.magpie.faint,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  static Widget _tag(
-    BuildContext context,
-    String label,
-    Color color, {
-    Color? background,
-  }) => TagChip(
-    label: label,
-    color: color,
-    background: background ?? context.magpie.canvas,
-    borderColor: context.magpie.line,
-  );
-}
-
-class _LanguageSelector extends StatelessWidget {
-  const _LanguageSelector({required this.language});
-  final AppLanguage language;
-
-  @override
-  Widget build(BuildContext context) {
-    final english = context.l10n.isEnglish;
-    return SurfaceCard(
-      padding: const EdgeInsets.all(5),
-      child: Row(
-        children: [
-          Expanded(
-            child: _languageButton(
-              context,
-              'language-zh',
-              '简体中文',
-              !english,
-              () => language.select(const Locale('zh')),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: _languageButton(
-              context,
-              'language-en',
-              'English',
-              english,
-              () => language.select(const Locale('en')),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _languageButton(
-    BuildContext context,
-    String key,
-    String label,
-    bool selected,
-    VoidCallback onPressed,
-  ) => Semantics(
-    selected: selected,
-    child: OutlinedButton(
-      key: ValueKey(key),
-      onPressed: selected ? null : onPressed,
-      child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-    ),
-  );
-}
-
-class _PlatformHero extends StatelessWidget {
-  const _PlatformHero();
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tr;
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF171D1B), Color(0xFF172521), Color(0xFF1C3E35)],
-        ),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF101C19).withValues(alpha: 0.18),
-            blurRadius: 30,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          Positioned(
-            right: -55,
-            bottom: -70,
-            child: Container(
-              width: 190,
-              height: 190,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFD3EDE1).withValues(alpha: 0.06),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(21),
+    final tokens = context.tokens;
+    final parts = [
+      t('通用', 'General'),
+      t('用量', 'Usage'),
+      t('网络', 'Network'),
+      t('模型', 'Models'),
+      t('隐私', 'Privacy'),
+      t('插件', 'Plugins'),
+      t('关于', 'About'),
+    ];
+    return Scaffold(
+      backgroundColor: tokens.bg,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      'SHARED SHELL',
-                      style: TextStyle(
-                        color: const Color(0xFFD3EDE1).withValues(alpha: 0.9),
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.4,
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        tooltip: t('返回', 'Back'),
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.arrow_back_rounded, size: 19),
+                        constraints: const BoxConstraints(
+                          minWidth: MagpieMetrics.touchTarget,
+                          minHeight: MagpieMetrics.touchTarget,
+                        ),
                       ),
-                    ),
-                    DemoBadge(
-                      label: t('平台适配未接入', 'Platform integration pending'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  t(
-                    'Android + iOS\n共用界面',
-                    'Shared interface\nfor Android + iOS',
-                  ),
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    color: Colors.white,
-                    fontSize: 27,
-                    height: 1.15,
-                    letterSpacing: -0.6,
-                  ),
-                ),
-                const SizedBox(height: 9),
-                Text(
-                  t(
-                    '一套 Flutter UI 覆盖两端，统一信息架构与交互语言。系统级差异尚未接入。',
-                    'One Flutter UI for both platforms, with consistent information architecture and interaction patterns. Platform-specific behavior is not yet integrated.',
-                  ),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.58),
-                    fontSize: 11.5,
-                    height: 1.55,
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Semantics(
+                          header: true,
+                          child: Text(
+                            t('设置', 'Settings'),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: tokens.fg,
+                            ),
+                          ),
+                        ),
+                      ),
+                      MagpieBadge(label: t('移动端', 'Mobile')),
+                      const SizedBox(width: 4),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                const Wrap(
-                  spacing: 7,
-                  runSpacing: 7,
-                  children: [
-                    _HeroChip(icon: Icons.android_rounded, label: 'Android'),
-                    _HeroChip(icon: Icons.phone_iphone_rounded, label: 'iOS'),
-                    _HeroChip(
-                      icon: Icons.flutter_dash_rounded,
-                      label: 'Flutter',
-                    ),
-                  ],
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Wrap(
+                    spacing: 2,
+                    runSpacing: 2,
+                    children: [
+                      for (var i = 0; i < parts.length; i++)
+                        Semantics(
+                          selected: _part == i,
+                          child: TextButton(
+                            key: ValueKey('settings-part-$i'),
+                            onPressed: () => setState(() => _part = i),
+                            style: TextButton.styleFrom(
+                              foregroundColor: _part == i
+                                  ? tokens.fg
+                                  : tokens.ctlFg,
+                              backgroundColor: _part == i
+                                  ? tokens.pill
+                                  : Colors.transparent,
+                              minimumSize: const Size(44, 44),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  MagpieMetrics.fieldRadius,
+                                ),
+                              ),
+                              textStyle: const TextStyle(
+                                fontSize: MagpieType.sectionLabel,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: .5,
+                              ),
+                            ),
+                            child: Text(parts[i].toUpperCase()),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Expanded(
+                  child: SingleChildScrollView(
+                    key: PageStorageKey('settings-part-$_part-scroll'),
+                    padding: pagePadding,
+                    child: _content(context),
+                  ),
                 ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context) {
+    final t = context.tr;
+    return switch (_part) {
+      0 => _general(context),
+      1 => _SettingsGroup(
+        title: t('用量记录', 'Usage records'),
+        children: [
+          _SettingsRow(
+            icon: Icons.bar_chart_rounded,
+            title: t('请求、Token 与费用', 'Requests, tokens and cost'),
+            detail: t(
+              '当前本机网关尚未采集用量与调用历史，暂无统计数据。',
+              'The local gateway does not collect usage or call history yet. No statistics are available.',
+            ),
+            status: t('未接入', 'Not connected'),
+          ),
+        ],
+      ),
+      2 => _network(context),
+      3 => _models(context),
+      4 => _privacy(context),
+      5 => _SettingsGroup(
+        title: t('插件运行时', 'Plugin runtime'),
+        children: [
+          _SettingsRow(
+            icon: Icons.extension_outlined,
+            title: t('桌面插件', 'Desktop plugins'),
+            detail: t(
+              '移动端尚未接入原版 Go 核心与插件运行时。Skills 与 MCP 目前仅管理配置和演示导出。',
+              'The upstream Go core and plugin runtime are not connected on mobile. Skills and MCP currently manage settings and demo exports only.',
+            ),
+            status: t('未接入', 'Not connected'),
+          ),
+        ],
+      ),
+      _ => _about(context),
+    };
+  }
+
+  Widget _general(BuildContext context) {
+    final t = context.tr;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SettingsGroup(
+          title: t('语言 / Language', 'Language / 语言'),
+          children: const [_LanguageSelector()],
+        ),
+        _SettingsGroup(
+          title: t('平台支持', 'Platform support'),
+          children: [
+            _SettingsRow(
+              icon: Icons.devices_outlined,
+              title: t(
+                'Android + iOS\n共用界面',
+                'Shared interface\nfor Android + iOS',
+              ),
+              detail: t(
+                '共用 Flutter 界面，基础安全区与系统返回使用 Flutter 默认行为。',
+                'Shared Flutter interface with basic safe areas and default Flutter back navigation.',
+              ),
+            ),
+            _SettingsRow(
+              icon: Icons.info_outline_rounded,
+              title: t('平台适配尚未接入', 'Platform integrations are not connected'),
+              detail: t(
+                '系统级导航适配、后台任务与文件选择仍待接入。网关仅在当前应用进程内运行。',
+                'Platform-specific navigation, background tasks and file selection are pending. The gateway runs in the current app process.',
+              ),
+              status: t('部分', 'Partial'),
+            ),
+          ],
+        ),
+        _platformChecklist(context),
+        _SettingsGroup(
+          title: t('演示数据', 'Demo data'),
+          children: [
+            _SettingsRow(
+              icon: Icons.restart_alt_rounded,
+              title: t('重置演示数据', 'Reset demo data'),
+              detail: t(
+                '恢复当前会话中的示例，保留网关上游配置。',
+                'Restore session examples and keep gateway upstream settings.',
+              ),
+              onTap: () => _resetDemoData(),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _platformChecklist(BuildContext context) {
+    final t = context.tr;
+    return _SettingsGroup(
+      title: t('平台适配清单', 'Platform integration checklist'),
+      children: [
+        _SettingsRow(
+          icon: Icons.android_rounded,
+          title: t(
+            'Android 边到边与返回手势',
+            'Android edge-to-edge and back gestures',
+          ),
+          detail: t(
+            '目前使用 SafeArea 与 Flutter 默认行为，专门的平台适配待实现。',
+            'Uses SafeArea and Flutter defaults. Dedicated platform integration is pending.',
+          ),
+          status: t('待接入', 'Pending'),
+        ),
+        _SettingsRow(
+          icon: Icons.phone_iphone_rounded,
+          title: t('iOS 安全区与导航手势', 'iOS safe areas and navigation gestures'),
+          detail: t(
+            '基础安全区已支持，深度导航适配待实现。',
+            'Basic safe areas are supported. Deeper navigation integration is pending.',
+          ),
+          status: t('部分', 'Partial'),
+        ),
+        _SettingsRow(
+          icon: Icons.sync_outlined,
+          title: t('后台任务与本地端口', 'Background tasks and local ports'),
+          detail: t(
+            '本机网关绑定回环地址，后台持续运行与 Termux 桥接尚未接入。stdio MCP 仅保存配置。',
+            'The gateway binds to loopback. Background execution and the Termux bridge are pending. stdio MCP only saves settings.',
+          ),
+          status: t('部分', 'Partial'),
+        ),
+        _SettingsRow(
+          icon: Icons.folder_open_outlined,
+          title: t('文件选择与资源导出', 'File selection and resource export'),
+          detail: t(
+            'Skills / MCP 仅管理配置与演示导出，不读写其他 App 私有目录。',
+            'Skills / MCP manage settings and demo exports only, without accessing other apps’ private folders.',
+          ),
+          status: t('演示', 'Demo'),
+        ),
+        _SettingsRow(
+          icon: Icons.vpn_key_outlined,
+          title: 'Keychain / Keystore',
+          detail: t(
+            '上游密钥已通过系统安全存储接入，读取或写入失败会由控制器报告。',
+            'Upstream keys use system secure storage. The controller reports read or write failures.',
+          ),
+          status: t('已接入', 'Connected'),
+        ),
+      ],
+    );
+  }
+
+  Widget _network(BuildContext context) {
+    final t = context.tr;
+    final gateway = GatewayScope.of(context);
+    return _SettingsGroup(
+      title: t('本机网络', 'Local network'),
+      children: [
+        _SettingsRow(
+          icon: Icons.hub_outlined,
+          title: t('监听地址', 'Listener address'),
+          detail: 'http://${gateway.address}',
+          status: gateway.state == GatewayState.running
+              ? t('运行中', 'Running')
+              : t('未运行', 'Not running'),
+        ),
+        _SettingsRow(
+          icon: Icons.route_outlined,
+          title: t('上游转发', 'Upstream forwarding'),
+          detail: t(
+            '仅已启动的本机网关会按协议转发至已保存的上游。请在网关栏目启停服务。',
+            'Only the running gateway forwards requests to saved protocol upstreams. Start or stop the listener in Gateway.',
+          ),
+        ),
+        _SettingsRow(
+          icon: Icons.lan_outlined,
+          title: t('局域网共享', 'LAN sharing'),
+          detail: t(
+            '当前仅监听 127.0.0.1，尚未接入局域网共享。',
+            'Currently listens on 127.0.0.1 only. LAN sharing is not implemented.',
+          ),
+          status: t('未接入', 'Not connected'),
+        ),
+      ],
+    );
+  }
+
+  Widget _models(BuildContext context) {
+    final t = context.tr;
+    final gateway = GatewayScope.of(context);
+    return _SettingsGroup(
+      title: t('模型与协议', 'Models and protocols'),
+      children: [
+        _SettingsRow(
+          icon: Icons.route_outlined,
+          title: t('协议路由', 'Protocol routes'),
+          detail: t(
+            '${gateway.configuredCount}/5 种协议路由已配置 · ${gateway.readyCount} 条就绪。请在供应商和路由栏目管理。',
+            '${gateway.configuredCount}/5 protocol routes configured · ${gateway.readyCount} ready. Manage these in Providers and Routing.',
+          ),
+        ),
+        _SettingsRow(
+          icon: Icons.swap_horiz_rounded,
+          title: t('跨协议转换与账号池', 'Protocol conversion and account pools'),
+          detail: t(
+            '移动端按所选协议转发，跨协议转换与账号池调度尚未接入。',
+            'Mobile forwards using the selected protocol. Cross-protocol conversion and account pool scheduling are not connected.',
+          ),
+          status: t('未接入', 'Not connected'),
+        ),
+      ],
+    );
+  }
+
+  Widget _privacy(BuildContext context) {
+    final t = context.tr;
+    return _SettingsGroup(
+      title: t('凭据与数据', 'Credentials and data'),
+      children: [
+        _SettingsRow(
+          icon: Icons.vpn_key_outlined,
+          title: t('上游密钥', 'Upstream keys'),
+          detail: t(
+            '密钥通过 Keychain / Keystore 保存，供应商配置仅保存凭据引用。',
+            'Keys are saved through Keychain / Keystore. Provider settings store credential references only.',
+          ),
+        ),
+        _SettingsRow(
+          icon: Icons.key_outlined,
+          title: t('本机客户端密钥', 'Local client key'),
+          detail: t(
+            '每次启动网关生成新密钥，仅保留在当前进程内存。',
+            'A new client key is generated on each gateway start and kept in process memory.',
+          ),
+        ),
+        _SettingsRow(
+          icon: Icons.shield_outlined,
+          title: t('请求脱敏', 'Request redaction'),
+          detail: t(
+            '本机网关尚未实现请求脱敏。',
+            'Request redaction is not implemented in the local gateway yet.',
+          ),
+          status: t('未接入', 'Not connected'),
+        ),
+        _SettingsRow(
+          icon: Icons.folder_off_outlined,
+          title: t(
+            '查看 Termux 与 iOS 沙箱边界',
+            'View Termux and iOS sandbox boundaries',
+          ),
+          detail: t(
+            '查看本地资源管理与平台权限的支持范围。',
+            'Review local resource management and platform permission support.',
+          ),
+          onTap: () => showSandboxSheet(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _about(BuildContext context) {
+    final t = context.tr;
+    final store = MagpieScope.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SettingsGroup(
+          title: 'Magpie Mobile',
+          children: [
+            _SettingsRow(
+              icon: Icons.flutter_dash_rounded,
+              title: t(
+                'Magpie · 移动端原型 0.1.0',
+                'Magpie · Mobile prototype 0.1.0',
+              ),
+              detail: t(
+                'Android + iOS 共用 Flutter 界面，本机网关运行于应用进程。',
+                'Shared Flutter interface for Android and iOS, with an in-process local gateway.',
+              ),
+            ),
+            _SettingsRow(
+              icon: Icons.cloud_off_outlined,
+              title: t('Magpie 服务连接', 'Magpie service connection'),
+              detail: t(
+                '原版 Go 核心、远程账号和配置同步尚未接入。',
+                'The upstream Go core, remote accounts and configuration sync are not connected.',
+              ),
+              status: t('未接入', 'Not connected'),
+            ),
+            _SettingsRow(
+              icon: Icons.storage_outlined,
+              title: t('本地示例数据', 'Local example data'),
+              detail: t(
+                '${store.agents.length} Agent · ${store.skills.length} Skill · ${store.mcpServers.length} MCP，仅保存在当前会话。',
+                '${store.agents.length} Agents · ${store.skills.length} Skills · ${store.mcpServers.length} MCP, kept in this session only.',
+              ),
+              status: t('演示', 'Demo'),
+            ),
+          ],
+        ),
+        _platformChecklist(context),
+      ],
+    );
+  }
+}
+
+class _LanguageSelector extends StatelessWidget {
+  const _LanguageSelector();
+
+  @override
+  Widget build(BuildContext context) {
+    final language = AppLanguageScope.of(context);
+    final tokens = context.tokens;
+    final english = context.l10n.isEnglish;
+    return Padding(
+      padding: const EdgeInsets.all(5),
+      child: Row(
+        children: [
+          for (final (code, label, selected) in [
+            ('zh', '简体中文', !english),
+            ('en', 'English', english),
+          ])
+            Expanded(
+              child: Semantics(
+                selected: selected,
+                child: TextButton(
+                  key: ValueKey('language-$code'),
+                  onPressed: () => language.select(Locale(code)),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(44, 44),
+                    backgroundColor: selected ? tokens.sel : Colors.transparent,
+                    foregroundColor: selected ? tokens.accent : tokens.ctlFg,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        MagpieMetrics.fieldRadius,
+                      ),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: MagpieType.field,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  child: Text(label),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-class _HeroChip extends StatelessWidget {
-  const _HeroChip({required this.icon, required this.label});
-  final IconData icon;
-  final String label;
+class _SettingsGroup extends StatelessWidget {
+  const _SettingsGroup({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.07),
-      borderRadius: BorderRadius.circular(9),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(icon, size: 12, color: context.magpie.mint),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 9.5,
-            fontWeight: FontWeight.w600,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(2, 4, 2, 6),
+          child: Semantics(
+            header: true,
+            child: Text(
+              title,
+              style: TextStyle(
+                color: context.tokens.ctlFg,
+                fontSize: MagpieType.sectionLabel,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
+        ),
+        MagpieList(
+          children: [
+            for (var i = 0; i < children.length; i++) ...[
+              if (i > 0)
+                Divider(height: 1, thickness: 1, color: context.tokens.line2),
+              children[i],
+            ],
+          ],
         ),
       ],
     ),
   );
 }
 
-class _SettingRow extends StatelessWidget {
-  const _SettingRow({
+/// Platform and privacy explanations stay readable at narrow widths and large
+/// text sizes, while using the same spacing and type ramp as upstream rows.
+class _SettingsRow extends StatelessWidget {
+  const _SettingsRow({
     required this.icon,
     required this.title,
-    required this.subtitle,
-    this.trailing,
+    required this.detail,
+    this.status,
     this.onTap,
   });
+
   final IconData icon;
   final String title;
-  final String subtitle;
-  final Widget? trailing;
+  final String detail;
+  final String? status;
   final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
-    final content = Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Icon(icon, size: 19, color: context.magpie.muted),
-        ),
-        const SizedBox(width: 11),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: context.magpie.ink,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  height: 1.35,
+    final tokens = context.tokens;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: MagpieMetrics.touchTarget,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(icon, size: 17, color: tokens.ctlFg),
                 ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(fontSize: 10.5, height: 1.45),
-              ),
-            ],
+                const SizedBox(width: MagpieMetrics.rowGap),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              color: tokens.fg,
+                              fontSize: MagpieType.rowName,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (status != null) MagpieBadge(label: status!),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        detail,
+                        style: TextStyle(
+                          color: tokens.fg2,
+                          fontSize: MagpieType.rowSub,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (onTap != null) ...[
+                  const SizedBox(width: 5),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 17,
+                    color: tokens.muted,
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
-        if (trailing != null) ...[
-          const SizedBox(width: 9),
-          Padding(padding: const EdgeInsets.only(top: 2), child: trailing!),
-        ],
-      ],
-    );
-    if (onTap == null) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 13),
-        child: content,
-      );
-    }
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 13),
-        child: content,
       ),
     );
   }

@@ -1,6 +1,6 @@
 # Magpie 移动端 UI 复刻计划
 
-更新于 2026-11-25。当前阶段：**计划已落盘，等待开始实现**。从下方第一个未勾选项恢复。原有工作区含未提交的 Agent 页面和网关回归测试改动。
+更新于 2026-11-25。第 1 步的实现和交互回归已完成。Android/iOS 真机截图对照待补。后续实现从第 2 步开始。
 
 ## 复刻基准
 
@@ -12,10 +12,12 @@
 
 ### 1. 导航与侧栏
 
-- [ ] 共享顶栏默认采用截图方案。左上角加侧栏切换按钮。宽屏展开停靠侧栏，选中栏目后侧栏保持展开。窄屏打开覆盖抽屉，选中栏目后自动收起。点击同一按钮、遮罩或系统返回可关闭，关闭后恢复焦点。旋转或跨宽窄屏时保留选中栏目和页面状态，宽屏记住展开偏好，窄屏进入时默认收起。
-- [ ] 一级入口遵循原版顺序：`Agent → 会话 → 资源库 → 供应商 → 路由 → 网关 → 用量 → 脱敏 → 插件`。核对源码后冻结中英文术语。窄屏横向滚动顶栏并把选中标签滚入视野，侧栏可直达全部栏目。设置作为工具入口。
-- [ ] Agent 成为默认首屏。当前概览里的真实启停和监听状态迁到「网关」。资源入口统一为「资源库 / Library」。用原版的中性背景、分隔线、表头和紧凑行统一壳层。保留浅深色、文字缩放和减少动态效果。
-- 验收：320、390 和宽屏下栏目完整可达，操作区至少 44 逻辑像素。切换语言、页面和侧栏时选中项一致，页面返回后保留对应滚动与筛选状态。
+- [x] 共享顶栏默认采用截图方案。左上角加侧栏切换按钮。宽屏展开停靠侧栏，选中栏目后侧栏保持展开。窄屏打开覆盖抽屉，选中栏目后自动收起。点击同一按钮、遮罩或系统返回可关闭，关闭后恢复焦点。旋转或跨宽窄屏时保留选中栏目和页面状态，宽屏记住展开偏好，窄屏进入时默认收起。
+- [x] 一级入口遵循本计划指定顺序 `Agent → 会话 → 资源库 → 供应商 → 路由 → 网关 → 用量 → 脱敏 → 插件`。英文为 `Agent → Sessions → Library → Providers → Routing → Gateway → Usage → Redaction → Plugins`。窄屏横向滚动顶栏并把选中标签滚入视野，侧栏可直达全部栏目。设置作为工具入口。
+- [x] Agent 成为默认首屏。当前概览里的真实启停和监听状态迁到「网关」。资源入口统一为「资源库 / Library」。用中性背景、分隔线、栏目标题和紧凑行统一壳层。保留浅深色、文字缩放和减少动态效果。
+- 交互验收覆盖 320、390 和 1024 逻辑像素，验证两处导航均可到达九个栏目、新导航触区至少 44、选中标签自动滚入视野、抽屉关闭恢复焦点、语言切换和旋转保留选择，以及返回资源库后保留 MCP 子栏目与滚动位置。
+- 上游基准为 `b711745b69a551b95b8a59a694c205f6ff3556ca`，通过 `gh api` 取得两份文件。上游根据屏宽切换顶栏、分组侧栏或手机底栏，侧栏模式有面包屑和上下文工具。本次按计划保留共享顶栏，在 700 逻辑像素切换停靠侧栏与覆盖抽屉，右侧提供设置。刷新、更新、查找和侧栏二级入口尚未接入。[app.js](https://github.com/yetone/magpie/blob/b711745b69a551b95b8a59a694c205f6ff3556ca/internal/gui/assets/app.js#L23947) · [app.css](https://github.com/yetone/magpie/blob/b711745b69a551b95b8a59a694c205f6ff3556ca/internal/gui/assets/app.css#L241)
+- [ ] Android/iOS 真机截图与桌面参考图的视觉对照待补。
 
 ### 2. Agent 页
 
@@ -48,4 +50,4 @@
 
 - 2026-11-25 计划阶段：计划落盘。开始前已有未提交改动：`THIRD_PARTY_NOTICES.md`、`lib/core/magpie_l10n.dart`、`lib/models/magpie_models.dart`、`lib/screens/agent_editor_page.dart`、`lib/screens/agents_page.dart`、`test/gateway_test.dart`、`test/responsive_test.dart`、`test/widget_test.dart`（Agent 列表与 Fast/推理透传测试，36 项测试通过）。
 
-当前进度：计划阶段。远程基线 `c4563cd`，本轮只添加计划文件。下一步从第 1 项的上游导航核对和共享界面壳开始。
+- 2026-11-25 第 1 步：完成导航与侧栏、共享文案和网关页迁移。改动见 `lib/screens/app_shell.dart`、`gateway_page.dart`、`overview_page.dart`、`resources_page.dart`，以及 `lib/core/magpie_l10n.dart`、`lib/widgets/primitives.dart`、`test/{responsive,widget,localization}_test.dart` 和 `THIRD_PARTY_NOTICES.md`。本轮仅保留工作树改动。`dart format` 已执行，`flutter analyze --no-pub` 无问题，`flutter test --no-pub` 42 项通过，包含网关页启停实际本机监听器的测试。下一步为第 2 步 Agent 页。

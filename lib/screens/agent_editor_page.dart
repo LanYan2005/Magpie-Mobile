@@ -283,7 +283,7 @@ class _AgentEditorPageState extends State<AgentEditorPage> {
                               ),
                               style: Theme.of(
                                 context,
-                              ).textTheme.displayMedium?.copyWith(fontSize: 30),
+                              ).textTheme.titleMedium?.copyWith(fontSize: 16),
                             ),
                             const SizedBox(height: 7),
                             Text(
@@ -591,7 +591,7 @@ class _RuntimeOption extends StatelessWidget {
     return Material(
       color: selected ? context.magpie.mintSoft : context.magpie.paper,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         side: BorderSide(
           color: selected ? context.magpie.jade : context.magpie.line,
           width: selected ? 1.3 : 1,
@@ -671,7 +671,7 @@ class _AccessOption extends StatelessWidget {
     return Material(
       color: selected ? context.magpie.mintSoft : context.magpie.paper,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(8),
         side: BorderSide(
           color: selected ? context.magpie.jade : context.magpie.line,
           width: selected ? 1.3 : 1,

@@ -3,19 +3,293 @@ import 'package:flutter/material.dart';
 import '../core/magpie_l10n.dart';
 import '../core/magpie_motion.dart';
 import '../core/magpie_theme.dart';
+import '../core/magpie_tokens.dart';
+import 'magpie_icon.dart';
 
 // SafeArea owns system insets; this is just the scroll content margin.
-const pagePadding = EdgeInsets.fromLTRB(20, 16, 20, 28);
+const pagePadding = EdgeInsets.fromLTRB(12, 8, 12, 16);
 
-// The extended body includes the dock; keep the last scroll item above it.
-EdgeInsets dockPagePadding(BuildContext context) {
-  // Scaffold.extendBody replaces padding.bottom with the dock's full height.
-  // Use viewPadding for the physical inset so it is never counted twice.
-  final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
-  final dockClearance = MediaQuery.sizeOf(context).height < 680 ? 88.0 : 96.0;
-  return pagePadding.copyWith(
-    bottom: pagePadding.bottom + safeBottom + dockClearance,
-  );
+// Kept for pages that still use the former bottom dock spacing.
+EdgeInsets dockPagePadding(BuildContext context) => pagePadding.copyWith(
+  bottom: pagePadding.bottom + MediaQuery.viewPaddingOf(context).bottom,
+);
+
+/// Upstream's `.list`: a compact white/charcoal group with 12px corners.
+class MagpieList extends StatelessWidget {
+  const MagpieList({required this.children, this.clip = true, super.key});
+
+  final List<Widget> children;
+  final bool clip;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Container(
+      clipBehavior: clip ? Clip.antiAlias : Clip.none,
+      decoration: BoxDecoration(
+        color: t.card,
+        border: Border.all(color: t.line),
+        borderRadius: BorderRadius.circular(MagpieMetrics.listRadius),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: children),
+    );
+  }
+}
+
+/// Upstream's `.row` with compact / relaxed density and optional action.
+class MagpieRow extends StatelessWidget {
+  const MagpieRow({
+    required this.title,
+    this.subtitle,
+    this.leading,
+    this.trailing,
+    this.onTap,
+    this.dense = true,
+    this.enabled = true,
+    super.key,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Widget? leading;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+  final bool dense;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final row = ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: dense ? MagpieMetrics.rowCompact : MagpieMetrics.rowRelaxed,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: MagpieMetrics.rowPadH,
+          vertical: MagpieMetrics.rowPadV,
+        ),
+        child: Row(
+          children: [
+            if (leading != null) ...[
+              leading!,
+              const SizedBox(width: MagpieMetrics.rowGap),
+            ],
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: MagpieType.rowName,
+                      fontWeight: FontWeight.w500,
+                      color: enabled ? t.fg : t.muted,
+                    ),
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: MagpieType.rowSub,
+                        color: t.muted,
+                        height: 1.25,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+          ],
+        ),
+      ),
+    );
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(onTap: enabled ? onTap : null, child: row),
+    );
+  }
+}
+
+/// Compact 25px pill used for model, status and selection fields.
+class MagpieField extends StatelessWidget {
+  const MagpieField({
+    required this.label,
+    this.icon,
+    this.onTap,
+    this.selected = false,
+    super.key,
+  });
+
+  final String label;
+  final IconData? icon;
+  final VoidCallback? onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Material(
+      color: selected ? t.sel : t.pill,
+      borderRadius: BorderRadius.circular(MagpieMetrics.fieldRadius),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(MagpieMetrics.fieldRadius),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: MagpieMetrics.fieldHeight,
+            minWidth: MagpieMetrics.touchTarget,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MagpieMetrics.fieldPadH,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 14, color: selected ? t.accent : t.muted),
+                  const SizedBox(width: 4),
+                ],
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: MagpieType.field,
+                      color: selected ? t.accent : t.fg2,
+                    ),
+                  ),
+                ),
+                if (onTap != null) ...[
+                  const SizedBox(width: 3),
+                  Icon(Icons.expand_more_rounded, size: 14, color: t.muted),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tiny status badge matching upstream `.badge`.
+class MagpieBadge extends StatelessWidget {
+  const MagpieBadge({
+    required this.label,
+    this.tone = MagpieBadgeTone.neutral,
+    super.key,
+  });
+
+  final String label;
+  final MagpieBadgeTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final (background, foreground) = switch (tone) {
+      MagpieBadgeTone.neutral => (t.pill, t.muted),
+      MagpieBadgeTone.accent => (t.accentSoft, t.accent),
+      MagpieBadgeTone.success => (t.greenSoft, t.green),
+      MagpieBadgeTone.warning => (t.amberSoft, t.amber),
+      MagpieBadgeTone.error => (t.redSoft, t.red),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(MagpieMetrics.badgeRadius),
+      ),
+      child: Text(
+        label.toUpperCase(),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: MagpieType.badge,
+          fontWeight: FontWeight.w600,
+          letterSpacing: .4,
+          color: foreground,
+        ),
+      ),
+    );
+  }
+}
+
+enum MagpieBadgeTone { neutral, accent, success, warning, error }
+
+/// Compact segmented selector; selected option has a raised card thumb.
+class MagpieSegmented extends StatelessWidget {
+  const MagpieSegmented({
+    required this.labels,
+    required this.index,
+    required this.onChanged,
+    super.key,
+  });
+
+  final List<String> labels;
+  final int index;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: t.pill,
+        borderRadius: BorderRadius.circular(MagpieMetrics.segmentRadius),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < labels.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(right: 1),
+              child: Material(
+                color: i == index ? t.card : Colors.transparent,
+                elevation: i == index ? 1 : 0,
+                borderRadius: BorderRadius.circular(
+                  MagpieMetrics.segmentThumbRadius,
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(
+                    MagpieMetrics.segmentThumbRadius,
+                  ),
+                  onTap: () => onChanged(i),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minHeight: MagpieMetrics.touchTarget,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Center(
+                        child: Text(
+                          labels[i],
+                          style: TextStyle(
+                            fontSize: MagpieType.field,
+                            color: i == index ? t.fg : t.ctlFg,
+                            fontWeight: i == index
+                                ? FontWeight.w500
+                                : FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class PageHeader extends StatelessWidget {
@@ -419,7 +693,8 @@ class TagChip extends StatelessWidget {
 
 class IconTile extends StatelessWidget {
   const IconTile({
-    required this.icon,
+    this.icon,
+    this.iconWidget,
     this.size = 44,
     this.iconSize = 20,
     this.background,
@@ -427,8 +702,9 @@ class IconTile extends StatelessWidget {
     this.radius = 14,
     this.borderColor,
     super.key,
-  });
-  final IconData icon;
+  }) : assert((icon == null) != (iconWidget == null));
+  final IconData? icon;
+  final Widget? iconWidget;
   final double size;
   final double iconSize;
   final Color? background;
@@ -445,21 +721,33 @@ class IconTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(radius),
       border: borderColor == null ? null : Border.all(color: borderColor!),
     ),
-    child: Icon(icon, size: iconSize, color: foreground ?? context.magpie.ink),
+    child: iconWidget == null
+        ? Icon(icon, size: iconSize, color: foreground ?? context.magpie.ink)
+        : Center(
+            child: IconTheme.merge(
+              data: IconThemeData(
+                size: iconSize,
+                color: foreground ?? context.magpie.ink,
+              ),
+              child: iconWidget!,
+            ),
+          ),
   );
 }
 
 class RoundIconButton extends StatelessWidget {
   const RoundIconButton({
-    required this.icon,
+    this.icon,
+    this.glyph,
     required this.onPressed,
     this.tooltip,
     this.filled = false,
     this.size = 44,
     super.key,
-  });
+  }) : assert((icon == null) != (glyph == null));
 
-  final IconData icon;
+  final IconData? icon;
+  final MagpieGlyph? glyph;
   final VoidCallback onPressed;
   final String? tooltip;
   final bool filled;
@@ -486,11 +774,20 @@ class RoundIconButton extends StatelessWidget {
           child: SizedBox(
             width: size < 44 ? 44 : size,
             height: size < 44 ? 44 : size,
-            child: Icon(
-              icon,
-              size: 20,
-              color: filled ? context.magpie.onJade : context.magpie.ink,
-            ),
+            child: glyph == null
+                ? Icon(
+                    icon,
+                    size: 20,
+                    color: filled ? context.magpie.onJade : context.magpie.ink,
+                  )
+                : Center(
+                    child: MagpieIcon(
+                      glyph!,
+                      size: 20,
+                      color: filled ? context.magpie.onJade : context.magpie.ink,
+                      matchTextDirection: true,
+                    ),
+                  ),
           ),
         ),
       ),
@@ -654,11 +951,13 @@ class PageTopBar extends StatelessWidget {
     required this.title,
     required this.onBack,
     this.trailing,
+    this.backIcon,
     super.key,
   });
 
   final String title;
   final VoidCallback onBack;
+  final MagpieGlyph? backIcon;
   final Widget? trailing;
 
   @override
@@ -666,7 +965,8 @@ class PageTopBar extends StatelessWidget {
     return Row(
       children: [
         RoundIconButton(
-          icon: Icons.arrow_back_rounded,
+          icon: backIcon == null ? Icons.arrow_back_rounded : null,
+          glyph: backIcon,
           tooltip: context.tr('返回', 'Back'),
           onPressed: onBack,
           size: 42,
@@ -801,14 +1101,16 @@ class SoftDivider extends StatelessWidget {
 
 class EmptyState extends StatelessWidget {
   const EmptyState({
-    required this.icon,
+    this.icon,
+    this.iconWidget,
     required this.title,
     required this.body,
     this.action,
     super.key,
-  });
+  }) : assert((icon == null) != (iconWidget == null));
 
-  final IconData icon;
+  final IconData? icon;
+  final Widget? iconWidget;
   final String title;
   final String body;
   final Widget? action;
@@ -821,6 +1123,7 @@ class EmptyState extends StatelessWidget {
         children: [
           IconTile(
             icon: icon,
+            iconWidget: iconWidget,
             size: 54,
             iconSize: 24,
             radius: 18,

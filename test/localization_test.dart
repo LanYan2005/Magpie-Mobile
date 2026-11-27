@@ -31,8 +31,18 @@ void main() {
 
     await mountApp();
     expect(appLocale(), const Locale('zh'));
-    expect(find.text('概览'), findsWidgets);
-    expect(find.text('Overview'), findsNothing);
+    expect(find.text('Claude Code'), findsOneWidget);
+    expect(find.text('资源库'), findsOneWidget);
+    expect(find.text('Library'), findsNothing);
+    final sidebar = find.byKey(const ValueKey('sidebar-toggle'));
+    await tester.tap(sidebar);
+    await tester.pumpAndSettle();
+    final redactionTab = find.byKey(const ValueKey('sidebar-redaction'));
+    await tester.ensureVisible(redactionTab);
+    await tester.pumpAndSettle();
+    await tester.tap(redactionTab);
+    await tester.pumpAndSettle();
+    expect(find.text('本机网关尚未实现请求脱敏。'), findsOneWidget);
 
     await openSettings();
     expect(find.text('设置'), findsOneWidget);
@@ -43,13 +53,31 @@ void main() {
     expect(appLocale(), const Locale('en'));
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('Language / 语言'), findsOneWidget);
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Request redaction is not implemented in the local gateway yet.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('本机网关尚未实现请求脱敏。'), findsNothing);
+    await tester.tap(sidebar);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: redactionTab, matching: find.text('Redaction')),
+      findsOneWidget,
+    );
+    await tester.tap(sidebar);
+    await tester.pumpAndSettle();
 
     await tester.pumpWidget(const SizedBox.shrink());
     await prefs.reload();
     await mountApp();
     expect(appLocale(), const Locale('en'));
-    expect(find.text('Overview'), findsWidgets);
-    expect(find.text('概览'), findsNothing);
+    expect(find.text('Claude Code'), findsOneWidget);
+    expect(find.text('Library'), findsOneWidget);
+    expect(find.text('资源库'), findsNothing);
 
     await openSettings();
     expect(find.text('Settings'), findsOneWidget);
@@ -64,7 +92,8 @@ void main() {
 
     await tester.tap(find.byTooltip('返回'));
     await tester.pumpAndSettle();
-    expect(find.text('概览'), findsWidgets);
-    expect(find.text('Overview'), findsNothing);
+    expect(find.text('Claude Code'), findsOneWidget);
+    expect(find.text('资源库'), findsOneWidget);
+    expect(find.text('Library'), findsNothing);
   });
 }
